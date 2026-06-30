@@ -1,0 +1,80 @@
+========================================================================
+ VersusD — Runbook de despliegue (servidor dedicado + master-server)
+========================================================================
+
+Todo se corre desde la carpeta del proyecto:  D:\VersusD
+Cliente = Unity Editor (recompila solo). Server dedicado = build Linux en Docker.
+
+
+------------------------------------------------------------------------
+ 0. BUILDEAR EL SERVER EN UNITY (en el Editor, a mano)
+------------------------------------------------------------------------
+File -> Build  con target  Dedicated Server / Linux
+Salida a:
+    D:\VersusD\com.unity.multiplayer.samples.coop\Builds
+
+REGLA DE ORO: cada vez que cambies codigo C# o escenas, rebuildea el
+server Linux (este paso) Y la imagen (paso 2). Si el cliente (Editor) y
+el DS no salen del mismo build, las SyncList / escenas se desincronizan.
+
+
+------------------------------------------------------------------------
+ 1. LEVANTAR EL MASTER-SERVER (si no esta corriendo)
+------------------------------------------------------------------------
+    cd D:\VersusD\master-server
+    docker compose up -d
+
+
+------------------------------------------------------------------------
+ 2. REBUILDEAR LA IMAGEN DEL GAME-SERVER Y REINICIAR EL DS
+------------------------------------------------------------------------
+    cd D:\VersusD
+    docker build -f master-server/Dockerfile.gameserver -t versused-game-server:latest com.unity.multiplayer.samples.coop/Builds
+    docker rm -f gs-9000 gs-9001 gs-9002
+
+(El docker rm tira DS viejos para que el master spawnee la imagen nueva.
+ Si no existen, ignora el error.)
+
+
+------------------------------------------------------------------------
+ 3. VERIFICAR QUE EL MASTER ESTA SANO
+------------------------------------------------------------------------
+    docker compose -f master-server/docker-compose.yml ps
+    curl http://127.0.0.1:8000/docs
+
+Tiene que responder 200. Si el contenedor esta caido (Exited):
+    docker compose -f master-server/docker-compose.yml up -d
+
+
+------------------------------------------------------------------------
+ 4. CONECTAR Y PROBAR
+------------------------------------------------------------------------
+Corre el cliente desde el Editor -> unite a un lobby dedicado.
+Logs del DS spawneado:
+    docker ps                 (ves el contenedor gs-90xx)
+    docker logs -f gs-9000    (cambia el nombre si es otro puerto)
+
+
+------------------------------------------------------------------------
+ COMANDOS UTILES
+------------------------------------------------------------------------
+Logs del master en vivo:
+    docker compose -f master-server/docker-compose.yml logs -f
+
+Bajar el master:
+    docker compose -f master-server/docker-compose.yml down
+
+Filtrar ruido de los logs del DS (PowerShell):
+    docker logs gs-9000 2>&1 | Select-String "CharSelect|Auth|Could not|DS]"
+
+Log del cliente (Editor):
+    C:\Users\nicol\AppData\Local\Unity\Editor\Editor.log
+
+
+------------------------------------------------------------------------
+ SI APARECE  "Could not resolve prefab for 'X'"
+------------------------------------------------------------------------
+Es un prefab spawneable que falta registrar. En el Editor, abri
+Startup.unity, selecciona el NetworkManager y arrastra ese prefab a
+spawnPrefabs. (Enemigos ya cubiertos: Imp, VandalImp, ImpBoss.)
+========================================================================

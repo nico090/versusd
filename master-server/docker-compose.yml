@@ -1,0 +1,45 @@
+services:
+  master-server:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:?set SECRET_KEY in .env}
+      - SERVER_SHARED_SECRET=${SERVER_SHARED_SECRET:?set SERVER_SHARED_SECRET in .env}
+      - REQUIRE_SECURE_SECRETS=${REQUIRE_SECURE_SECRETS:-true}
+      - MONGO_URL=mongodb://mongo:27017
+      - DB_NAME=versused
+      - VPS_PUBLIC_IP=${VPS_PUBLIC_IP:-127.0.0.1}
+      - GAME_SERVER_IMAGE=versused-game-server
+      - GAME_SERVER_PORT_START=9000
+      - GAME_SERVER_PORT_END=9999
+      - DOCKER_NETWORK=master-server_versused
+      - MASTER_SERVER_INTERNAL_URL=http://master-server:8000
+    volumes:
+      # Allow master server to spawn game-server containers on the host daemon.
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - mongo
+    restart: unless-stopped
+    networks:
+      - versused
+
+  mongo:
+    image: mongo:7
+    volumes:
+      # Persist the database across restarts.
+      - mongo_data:/data/db
+    restart: unless-stopped
+    networks:
+      - versused
+
+  # Game servers are spawned on-demand by the master server.
+  # No static game-server entries needed here.
+  # Ports 9000-9999/udp must be open on the VPS firewall.
+
+volumes:
+  mongo_data:
+
+networks:
+  versused:
+    driver: bridge

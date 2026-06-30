@@ -1,0 +1,23 @@
+{
+    "name": "Unity.BossRoom.ConnectionManagement",
+    "rootNamespace": "",
+    "references": [
+        "Mirror",
+        "Mirror.Transports",
+        "kcp2k",
+        "Unity.Multiplayer.Samples.Utilities",
+        "Unity.BossRoom.Infrastructure",
+        "Unity.BossRoom.Utils",
+        "VContainer",
+        "Unity.BossRoom.MasterServer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

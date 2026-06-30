@@ -1,0 +1,25 @@
+{
+    "name": "Unity.BossRoom.Mirror",
+    "rootNamespace": "Unity.BossRoom.Mirror",
+    "references": [
+        "Unity.BossRoom.MasterServer",
+        "Unity.BossRoom.ConnectionManagement",
+        "Unity.Multiplayer.Samples.Utilities",
+        "Mirror"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.mirror-networking.mirror",
+            "expression": "",
+            "define": "MIRROR_NETWORKING"
+        }
+    ],
+    "noEngineReferences": false
+}

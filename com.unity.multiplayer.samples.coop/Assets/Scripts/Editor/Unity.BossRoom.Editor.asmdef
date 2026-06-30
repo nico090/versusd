@@ -1,0 +1,20 @@
+{
+    "name": "Unity.BossRoom.Editor",
+    "rootNamespace": "",
+    "references": [
+        "Mirror",
+        "Unity.BossRoom.Gameplay",
+        "Unity.BossRoom.Mirror"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

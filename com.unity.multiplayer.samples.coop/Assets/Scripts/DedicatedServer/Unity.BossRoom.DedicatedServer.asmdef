@@ -1,0 +1,19 @@
+{
+    "name": "Unity.BossRoom.DedicatedServer",
+    "rootNamespace": "Unity.BossRoom.DedicatedServer",
+    "references": [
+        "Mirror",
+        "Unity.Multiplayer.Samples.Utilities",
+        "Unity.BossRoom.MasterServer",
+        "Unity.BossRoom.ConnectionManagement"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

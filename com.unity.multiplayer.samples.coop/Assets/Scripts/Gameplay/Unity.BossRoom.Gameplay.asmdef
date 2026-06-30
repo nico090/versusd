@@ -1,0 +1,33 @@
+{
+    "name": "Unity.BossRoom.Gameplay",
+    "rootNamespace": "",
+    "references": [
+        "Mirror",
+        "Mirror.Components",
+        "Unity.Collections",
+        "Unity.TextMeshPro",
+        "Unity.BossRoom.Infrastructure",
+        "Unity.BossRoom.Navigation",
+        "Unity.BossRoom.ApplicationLifecycle.Messages",
+        "Unity.BossRoom.Audio",
+        "Unity.Multiplayer.Samples.Utilities",
+        "Unity.BossRoom.Utils",
+        "Unity.BossRoom.ConnectionManagement",
+        "Unity.BossRoom.Mirror",
+        "Unity.BossRoom.MasterServer",
+        "Unity.BossRoom.DedicatedServer",
+        "VContainer",
+        "Unity.BossRoom.VisualEffects",
+        "Unity.BossRoom.CameraUtils",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

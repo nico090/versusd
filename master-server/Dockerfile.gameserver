@@ -1,0 +1,26 @@
+FROM ubuntu:22.04
+
+# Common Unity Linux server runtime dependencies.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libglib2.0-0 \
+        libstdc++6 \
+        libgcc-s1 \
+        libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /game
+# Build context should be the Unity Linux server build output folder.
+COPY . .
+RUN chmod +x VersusD.x86_64
+
+# Port is assigned at runtime by the master server (env SERVER_PORT).
+# Expose the full range used in docker-compose.yml so Docker knows it's UDP.
+EXPOSE 9000-9999/udp
+
+# Required env vars (injected by master server spawn.py):
+#   MASTER_SERVER_URL   http://master-server:8000
+#   SERVER_IP           public IP the clients will connect to
+#   SERVER_PORT         UDP port this instance listens on
+#   SERVER_SHARED_SECRET  shared secret for /servers/* auth
+
+CMD ["./VersusD.x86_64", "-batchmode", "-nographics", "-logFile", "/dev/stdout"]

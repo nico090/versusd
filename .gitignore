@@ -1,0 +1,35 @@
+# ── Secrets (defense in depth; subproject .gitignores also cover these) ──
+.env
+*.env
+!*.env.example
+**/.env
+
+# ── Claude Code local settings ──
+.claude/settings.local.json
+
+# ── Python ──
+**/.venv/
+**/.venv-test/
+**/__pycache__/
+*.pyc
+*.db
+*.sqlite
+*.sqlite3
+**/.pytest_cache/
+
+# ── Unity (the Unity project also has its own .gitignore) ──
+com.unity.multiplayer.samples.coop/[Ll]ibrary/
+com.unity.multiplayer.samples.coop/[Tt]emp/
+com.unity.multiplayer.samples.coop/[Oo]bj/
+com.unity.multiplayer.samples.coop/[Bb]uilds/
+com.unity.multiplayer.samples.coop/[Ll]ogs/
+com.unity.multiplayer.samples.coop/.vs/
+
+# ── OS / editor cruft ──
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+
+# Unity build output
+com.unity.multiplayer.samples.coop/WindowsBuilds/

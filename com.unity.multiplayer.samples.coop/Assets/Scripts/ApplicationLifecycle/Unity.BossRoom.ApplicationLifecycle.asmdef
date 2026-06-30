@@ -1,0 +1,26 @@
+{
+    "name": "Unity.BossRoom.ApplicationLifecycle",
+    "rootNamespace": "",
+    "references": [
+        "Mirror",
+        "Unity.BossRoom.Gameplay",
+        "Unity.BossRoom.ApplicationLifecycle.Messages",
+        "Unity.BossRoom.Infrastructure",
+        "Unity.Collections",
+        "Unity.Multiplayer.Samples.Utilities",
+        "Unity.BossRoom.Utils",
+        "Unity.BossRoom.ConnectionManagement",
+        "Unity.BossRoom.MasterServer",
+        "Unity.BossRoom.DedicatedServer",
+        "VContainer"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
