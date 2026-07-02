@@ -1,0 +1,64 @@
+# Hardened production overlay. Use ALONGSIDE the base compose file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Adds two security layers the dev compose intentionally omits:
+#   1. Caddy in front, terminating TLS (SEG-4) so credentials/JWTs never travel
+#      in clear. Caddy auto-provisions a Let's Encrypt cert for MASTER_DOMAIN.
+#   2. docker-socket-proxy (SEG-8) so the master server no longer mounts the raw
+#      /var/run/docker.sock (== root on the host if it were ever RCE'd). The proxy
+#      exposes ONLY the container endpoints spawn.py needs.
+#
+# Required env (in .env): MASTER_DOMAIN=master.example.com
+services:
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - MASTER_DOMAIN=${MASTER_DOMAIN:?set MASTER_DOMAIN in .env}
+    command: >
+      caddy reverse-proxy --from ${MASTER_DOMAIN} --to master-server:8000
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - master-server
+    restart: unless-stopped
+    networks:
+      - versused
+
+  # Least-privilege Docker API gateway. Only the endpoints needed to spawn/stop
+  # game-server containers are enabled; everything else is denied by default.
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    environment:
+      - CONTAINERS=1   # list/inspect
+      - POST=1         # allow create/start/stop (needed by `docker run`/`docker stop`)
+      - IMAGES=1       # resolve the game-server image
+      - NETWORKS=1     # attach to the versused network
+      - EXEC=0
+      - VOLUMES=0
+      - INFO=0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    networks:
+      - versused
+
+  master-server:
+    # Stop exposing 8000 publicly — Caddy is the only ingress now.
+    ports: []
+    # Drop the raw socket mount; talk to the daemon through the proxy instead.
+    volumes: []
+    environment:
+      # spawn.py / Docker CLI honour DOCKER_HOST; point it at the proxy.
+      - DOCKER_HOST=tcp://docker-socket-proxy:2375
+    depends_on:
+      - mongo
+      - docker-socket-proxy
+
+volumes:
+  caddy_data:
+  caddy_config:

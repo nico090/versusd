@@ -19,6 +19,9 @@ def create_indexes(db: Database) -> None:
     # Usernames are unique (the register route also checks, but the index is the
     # real guarantee under concurrency). Other indexes back hot lookups/prunes.
     db.users.create_index("username", unique=True)
+    # TTL index: guest docs carry a guest_expires_at datetime and are auto-removed
+    # once it passes. Registered users leave the field null, so they're never pruned.
+    db.users.create_index("guest_expires_at", expireAfterSeconds=0)
     db.game_servers.create_index([("port", ASCENDING)])
     db.game_servers.create_index([("status", ASCENDING)])
     db.join_tokens.create_index([("session_id", ASCENDING)])

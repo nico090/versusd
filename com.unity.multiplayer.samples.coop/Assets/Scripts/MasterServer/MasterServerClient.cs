@@ -12,6 +12,10 @@ namespace Unity.BossRoom.MasterServer
     /// </summary>
     public class MasterServerClient
     {
+        // Ceiling on any single request so a hung connection can't stall the DS's
+        // async register/heartbeat loops indefinitely.
+        const int k_RequestTimeoutSeconds = 15;
+
         readonly string m_BaseUrl;
         string m_AccessToken;
         string m_ServerSecret;
@@ -137,6 +141,7 @@ namespace Unity.BossRoom.MasterServer
 
         void AddAuthHeader(UnityWebRequest req)
         {
+            req.timeout = k_RequestTimeoutSeconds;
             if (!string.IsNullOrEmpty(m_AccessToken))
                 req.SetRequestHeader("Authorization", $"Bearer {m_AccessToken}");
             // Dedicated servers also present the shared secret for privileged endpoints.

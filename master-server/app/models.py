@@ -47,6 +47,9 @@ class User(_Doc):
     games_played: int = 0
     games_won: int = 0
     created_at: datetime = Field(default_factory=utcnow)
+    # Only set on guest accounts: the instant a TTL index prunes them. Registered
+    # users leave this null, so the TTL index never touches them.
+    guest_expires_at: datetime | None = None
 
 
 class Lobby(_Doc):

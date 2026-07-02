@@ -178,6 +178,41 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     }
                 }
             }
+
+            // Drive life-state (Alive/Fainted/Dead) animations client-side from the synced
+            // life state. The server's ServerAnimationHandler tries to play these via Mirror's
+            // NetworkAnimator, but on the headless dedicated server that path never reaches
+            // clients (PlayerAvatar's NetworkAnimator is ClientToServer; NPCs have none), so
+            // death/faint poses were missing. The SyncVar hook fires on every client, so this
+            // is the reliable path — same approach as Action.OnStartClient for attack anims.
+            if (m_ServerCharacter.NetLifeState != null)
+            {
+                m_ServerCharacter.NetLifeState.LifeStateChanged += OnLifeStateChangedClient;
+                // Apply the current state once: the hook only fires on subsequent changes,
+                // so a late-joiner observing an already-fainted/dead character needs this.
+                if (m_ServerCharacter.NetLifeState.LifeState != LifeState.Alive)
+                {
+                    OnLifeStateChangedClient(LifeState.Alive, m_ServerCharacter.NetLifeState.LifeState);
+                }
+            }
+        }
+
+        void OnLifeStateChangedClient(LifeState previousValue, LifeState newValue)
+        {
+            if (m_ClientVisualsAnimator == null) return;
+
+            switch (newValue)
+            {
+                case LifeState.Alive:
+                    OurAnimator.SetTrigger(m_VisualizationConfiguration.AliveStateTriggerID);
+                    break;
+                case LifeState.Fainted:
+                    OurAnimator.SetTrigger(m_VisualizationConfiguration.FaintedStateTriggerID);
+                    break;
+                case LifeState.Dead:
+                    OurAnimator.SetTrigger(m_VisualizationConfiguration.DeadStateTriggerID);
+                    break;
+            }
         }
 
         public override void OnStopClient()
@@ -185,6 +220,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             if (m_ServerCharacter)
             {
                 m_ServerCharacter.IsStealthyChanged -= OnStealthyChanged;
+
+                if (m_ServerCharacter.NetLifeState != null)
+                {
+                    m_ServerCharacter.NetLifeState.LifeStateChanged -= OnLifeStateChangedClient;
+                }
 
                 if (m_ServerCharacter.TryGetComponent(out ClientInputSender sender))
                 {

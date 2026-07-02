@@ -209,6 +209,18 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         /// </summary>
         public ServerCharacter LastLethalInflicter => m_LastLethalInflicter;
 
+        // Server-only spawn-protection deadline (Time.time). While Time.time is below this,
+        // incoming damage is ignored. Plain field (not a SyncVar): damage resolution is
+        // server-authoritative, so clients don't need it. Crucially this is NOT the
+        // #if-gated god-mode path — that check is compiled out of the release DS build.
+        float m_InvulnerableUntilTime;
+
+        /// <summary>Server-only: grant brief damage immunity (e.g. spawn protection after a respawn).</summary>
+        public void SetInvulnerable(float seconds)
+        {
+            m_InvulnerableUntilTime = Time.time + seconds;
+        }
+
         void Awake()
         {
             m_ServerActionPlayer = new ServerActionPlayer(this);
@@ -257,12 +269,20 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         [Command]
         public void CmdSendCharacterInput(Vector3 movementTarget)
         {
+            // SECURITY: reject non-finite positions sent by a malformed/malicious client
+            // before they reach the NavMesh/physics layer.
+            if (!IsFiniteVector(movementTarget))
+            {
+                return;
+            }
+
             if (LifeState == LifeState.Alive && !m_Movement.IsPerformingForcedMovement())
             {
                 // if we're currently playing an interruptible action, interrupt it!
                 if (m_ServerActionPlayer.GetActiveActionInfo(out ActionRequestData data))
                 {
-                    if (GameDataSource.Instance.GetActionPrototypeByID(data.ActionID).Config.ActionInterruptible)
+                    if (GameDataSource.Instance.TryGetActionPrototypeByID(data.ActionID, out var proto)
+                        && proto.Config.ActionInterruptible)
                     {
                         m_ServerActionPlayer.ClearActions(false);
                     }
@@ -271,6 +291,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 m_ServerActionPlayer.CancelRunningActionsByLogic(ActionLogic.Target, true); //clear target on move.
                 m_Movement.SetMovementTarget(movementTarget);
             }
+        }
+
+        /// <summary>True if every component of <paramref name="v"/> is finite (no NaN/Infinity).</summary>
+        static bool IsFiniteVector(Vector3 v)
+        {
+            return !(float.IsNaN(v.x) || float.IsInfinity(v.x) ||
+                     float.IsNaN(v.y) || float.IsInfinity(v.y) ||
+                     float.IsNaN(v.z) || float.IsInfinity(v.z));
         }
 
         /// <summary>
@@ -282,12 +310,19 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         [Command]
         public void CmdSetMovementDirection(Vector3 worldDirection)
         {
+            // SECURITY: reject non-finite directions from a malformed/malicious client.
+            if (!IsFiniteVector(worldDirection))
+            {
+                return;
+            }
+
             if (LifeState == LifeState.Alive && !m_Movement.IsPerformingForcedMovement())
             {
                 // moving interrupts an interruptible action (same rule as click-move)
                 if (m_ServerActionPlayer.GetActiveActionInfo(out ActionRequestData data))
                 {
-                    if (GameDataSource.Instance.GetActionPrototypeByID(data.ActionID).Config.ActionInterruptible)
+                    if (GameDataSource.Instance.TryGetActionPrototypeByID(data.ActionID, out var proto)
+                        && proto.Config.ActionInterruptible)
                     {
                         m_ServerActionPlayer.ClearActions(false);
                     }
@@ -306,8 +341,17 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         [Command]
         public void CmdPlayAction(ActionRequestData data)
         {
+            // SECURITY: data.ActionID comes straight from the client. Look it up via the
+            // bounds-checked Try* helper — GetActionPrototypeByID indexes a List directly,
+            // so a malformed/out-of-range ActionID would throw on the server thread and
+            // crash the headless dedicated server (DoS for the whole match).
+            if (!GameDataSource.Instance.TryGetActionPrototypeByID(data.ActionID, out var actionPrototype))
+            {
+                return;
+            }
+
             ActionRequestData data1 = data;
-            if (!GameDataSource.Instance.GetActionPrototypeByID(data1.ActionID).Config.IsFriendly)
+            if (!actionPrototype.Config.IsFriendly)
             {
                 // notify running actions that we're using a new attack. (e.g. so Stealth can cancel itself)
                 ActionPlayer.OnGameplayActivity(Action.GameplayActivity.UsingAttackAction);
@@ -397,6 +441,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             }
             else
             {
+                // Spawn protection / brief immunity. Unconditional (unlike the god-mode
+                // check below, which the release dedicated-server build compiles out), so
+                // post-respawn invulnerability actually works on the headless server.
+                if (Time.time < m_InvulnerableUntilTime)
+                {
+                    return;
+                }
+
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 // Don't apply damage if god mode is on
                 if (NetLifeState.IsGodMode)

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -8,6 +9,7 @@ from pymongo.database import Database
 from ..config import settings
 from ..database import get_db
 from ..models import GameServer, JoinToken, Lobby, User, utcnow
+from ..ratelimit import lobby_rate_limit
 from ..schemas import (
     CreateDedicatedLobbyRequest,
     CreateLobbyRequest,
@@ -19,6 +21,10 @@ from ..schemas import (
 from ..security import get_current_user, hash_password, verify_password
 from ..spawn import find_free_port, spawn_game_server, stop_container
 
+logger = logging.getLogger("versused.lobby")
+
+# Per-IP rate limit on mutating lobby endpoints (create / join). Read-only listing
+# is intentionally excluded so the browser can refresh freely.
 router = APIRouter(prefix="/lobby", tags=["lobby"])
 
 # Serializes dedicated-server allocation so two concurrent requests can't pick
@@ -84,7 +90,12 @@ def list_lobbies(
     return LobbyListResponse(lobbies=[_to_response(lobby) for lobby in lobbies])
 
 
-@router.post("", response_model=LobbyResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=LobbyResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(lobby_rate_limit)],
+)
 def create_lobby(
     body: CreateLobbyRequest,
     db: Database = Depends(get_db),
@@ -118,7 +129,10 @@ def create_lobby(
 
 
 @router.post(
-    "/dedicated", response_model=LobbyResponse, status_code=status.HTTP_201_CREATED
+    "/dedicated",
+    response_model=LobbyResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(lobby_rate_limit)],
 )
 async def create_dedicated_lobby(
     body: CreateDedicatedLobbyRequest,
@@ -137,6 +151,32 @@ async def create_dedicated_lobby(
     async with _alloc_lock:
         prune_stale_lobbies(db)
         _assert_name_available(db, body.name)
+
+        # Anti-abuse: a single account can't spin up unlimited containers.
+        owned = db.lobbies.count_documents(
+            {"host_player_id": user.player_id, "is_dedicated": True}
+        )
+        if owned >= settings.max_dedicated_lobbies_per_player:
+            logger.warning(
+                "dedicated lobby quota hit: player_id=%s owns=%d", user.player_id, owned
+            )
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="You already have an active dedicated lobby",
+            )
+
+        # Fleet-wide cap so the whole VPS can't be exhausted by concurrent spawns.
+        live_servers = db.game_servers.count_documents({})
+        if live_servers >= settings.max_concurrent_game_servers:
+            logger.warning(
+                "fleet container cap hit: live=%d cap=%d",
+                live_servers, settings.max_concurrent_game_servers,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="SERVER_UNAVAILABLE",
+            )
+
         port = find_free_port(db)
         if port is None:
             raise HTTPException(
@@ -148,7 +188,12 @@ async def create_dedicated_lobby(
         # P2P — never bubble up as a 500.
         try:
             container_name = spawn_game_server(port)
+            logger.info(
+                "spawned game server: port=%d owner=%s live=%d",
+                port, user.player_id, live_servers + 1,
+            )
         except Exception as exc:
+            logger.error("spawn_game_server failed on port %d: %s", port, exc)
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="SERVER_UNAVAILABLE",
@@ -204,7 +249,11 @@ async def create_dedicated_lobby(
     return _to_response(lobby)
 
 
-@router.post("/{session_id}/join", response_model=JoinResponse)
+@router.post(
+    "/{session_id}/join",
+    response_model=JoinResponse,
+    dependencies=[Depends(lobby_rate_limit)],
+)
 def join_lobby(
     session_id: str,
     body: JoinLobbyRequest,

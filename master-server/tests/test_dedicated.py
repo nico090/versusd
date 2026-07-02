@@ -48,6 +48,34 @@ def test_create_dedicated_lobby_allocates_server(client, monkeypatch):
     assert any(lo["session_id"] == data["session_id"] for lo in listed)
 
 
+def test_dedicated_lobby_quota_per_player(client, monkeypatch):
+    """A single account can't own more than max_dedicated_lobbies_per_player."""
+    monkeypatch.setattr(lobby_router, "spawn_game_server", _fake_spawn_factory(9010))
+    monkeypatch.setattr(lobby_router, "stop_container", lambda name: None)
+    monkeypatch.setattr(lobby_router.settings, "container_spawn_timeout_seconds", 3.0)
+    monkeypatch.setattr(lobby_router.settings, "max_dedicated_lobbies_per_player", 1)
+
+    headers = auth_header(client)
+    r1 = client.post("/lobby/dedicated", json={"name": "Arena1"}, headers=headers)
+    assert r1.status_code == 201
+
+    r2 = client.post("/lobby/dedicated", json={"name": "Arena2"}, headers=headers)
+    assert r2.status_code == 429
+
+
+def test_dedicated_global_container_cap(client, monkeypatch):
+    """Fleet-wide cap returns 503 once max_concurrent_game_servers is reached."""
+    monkeypatch.setattr(lobby_router, "spawn_game_server", _fake_spawn_factory(9020))
+    monkeypatch.setattr(lobby_router, "stop_container", lambda name: None)
+    monkeypatch.setattr(lobby_router.settings, "container_spawn_timeout_seconds", 3.0)
+    monkeypatch.setattr(lobby_router.settings, "max_concurrent_game_servers", 0)
+
+    headers = auth_header(client)
+    r = client.post("/lobby/dedicated", json={"name": "Arena"}, headers=headers)
+    assert r.status_code == 503
+    assert r.json()["detail"] == "SERVER_UNAVAILABLE"
+
+
 def test_dedicated_falls_back_when_no_container_registers(client, monkeypatch):
     # Spawn that never registers → 503 SERVER_UNAVAILABLE.
     monkeypatch.setattr(lobby_router, "spawn_game_server", lambda p: f"gs-{p}")

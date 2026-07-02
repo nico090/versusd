@@ -34,6 +34,10 @@ namespace Unity.BossRoom.Mirror
         // Resolved in OnStartServer: dedicated servers require a valid join token.
         bool m_RequireToken;
 
+        // Ceiling on a master-server call so a stalled request can't leave a
+        // connection hanging in the auth handshake indefinitely.
+        const int k_RequestTimeoutSeconds = 15;
+
         // ── Messages ──────────────────────────────────────────────────────────
 
         public struct AuthRequestMessage : NetworkMessage
@@ -122,6 +126,7 @@ namespace Unity.BossRoom.Mirror
             req.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(requestBody));
             req.downloadHandler = new DownloadHandlerBuffer();
             req.SetRequestHeader("Content-Type", "application/json");
+            req.timeout = k_RequestTimeoutSeconds;
             yield return req.SendWebRequest();
 
             bool ok = req.result == UnityWebRequest.Result.Success;
@@ -184,6 +189,7 @@ namespace Unity.BossRoom.Mirror
             req.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(requestBody));
             req.downloadHandler = new DownloadHandlerBuffer();
             req.SetRequestHeader("Content-Type", "application/json");
+            req.timeout = k_RequestTimeoutSeconds;
             yield return req.SendWebRequest();
             if (req.result != UnityWebRequest.Result.Success)
                 Debug.LogWarning($"[Auth] Failed to consume join token (will expire via TTL): {req.error}");

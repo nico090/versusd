@@ -37,6 +37,21 @@ class Settings(BaseSettings):
     # Set false (or DEV_ALLOW_INSECURE=1) only for local development without auth.
     require_secure_secrets: bool = True
 
+    # ── Abuse / resource-exhaustion limits ──────────────────────────────────────
+    # Auth endpoints: attempts per client IP within the window.
+    auth_rate_limit_max: int = 10
+    auth_rate_limit_window_seconds: float = 60.0
+    # Lobby mutating endpoints (create / join): requests per client IP within the window.
+    lobby_rate_limit_max: int = 20
+    lobby_rate_limit_window_seconds: float = 60.0
+    # Max dedicated lobbies a single player may own at once (caps container spawns
+    # driven by one account — see POST /lobby/dedicated).
+    max_dedicated_lobbies_per_player: int = 1
+    # Hard cap on concurrent dedicated game-server containers across the whole fleet.
+    max_concurrent_game_servers: int = 50
+    # Guest accounts are pruned this many hours after creation (0 disables pruning).
+    guest_ttl_hours: int = 48
+
     # ── On-demand dedicated game-server spawning ────────────────────────────────
     vps_public_ip: str = "127.0.0.1"
     game_server_image: str = "versused-game-server"

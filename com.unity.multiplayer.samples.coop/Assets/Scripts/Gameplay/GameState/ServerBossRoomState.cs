@@ -47,6 +47,9 @@ namespace Unity.BossRoom.Gameplay.GameState
 
         private const float k_WinDelay = 7.0f;
         private const float k_RespawnDelay = 5f;
+        // Brief spawn protection so a freshly respawned player can't be instantly
+        // re-killed at the spawn point (spawn-camping). Server-authoritative.
+        private const float k_RespawnInvulnerability = 2f;
 
         /// <summary>
         /// Has the ServerBossRoomState already hit its initial spawn? (i.e. spawned players following load from character select).
@@ -122,12 +125,32 @@ namespace Unity.BossRoom.Gameplay.GameState
             }
         }
 
-        void OnServerClientDisconnected(NetworkConnectionToClient conn) { }
+        void OnServerClientDisconnected(NetworkConnectionToClient conn)
+        {
+            // Remove the leaver from the live scoreboard so they can't keep a slot — or
+            // "win" the match — while no longer connected.
+            //
+            // DESIGN NOTE (PLAN_1.0 BUG-1): this also means a player who drops for even a
+            // moment loses their score. That's an accepted trade-off *because the scoreboard
+            // is keyed by Mirror connectionId, which changes on reconnect* — so the score
+            // couldn't survive a reconnect anyway. To make scores durable across brief
+            // drops, re-key ScoreEntry/ApplyScoreDelta by the stable master-server PlayerId
+            // and mark entries connected/disconnected instead of deleting them. Left as
+            // follow-up: it's a networked-struct + reconnection change that needs in-game
+            // validation.
+            if (networkGameState != null)
+            {
+                networkGameState.RemovePlayer((ulong)(uint)conn.connectionId);
+            }
+        }
 
         void Update()
         {
-            if (!m_ServerInitialized || m_MatchEnded) return;
-            if (networkGameState != null && networkGameState.TimeRemaining <= 0f)
+            if (!m_ServerInitialized || m_MatchEnded || networkGameState == null) return;
+
+            // Primary win condition (free-for-all): first to the target score.
+            // Fallback: the timer running out (highest score wins, resolved in CoroGameOver).
+            if (networkGameState.HasPlayerReachedTarget() || networkGameState.TimeRemaining <= 0f)
             {
                 m_MatchEnded = true;
                 StartCoroutine(CoroGameOver(k_WinDelay));
@@ -250,6 +273,7 @@ namespace Unity.BossRoom.Gameplay.GameState
             var spawnPoint = m_PlayerSpawnPoints[Random.Range(0, m_PlayerSpawnPoints.Length)];
             sc.physicsWrapper.Transform.SetPositionAndRotation(spawnPoint.position, spawnPoint.rotation);
             sc.Revive(null, sc.CharacterClass.BaseHP.Value);
+            sc.SetInvulnerable(k_RespawnInvulnerability);
         }
 
         IEnumerator CoroGameOver(float wait)
@@ -260,7 +284,7 @@ namespace Unity.BossRoom.Gameplay.GameState
             var sorted = new List<ScoreEntry>(networkGameState.Scores.Count);
             for (int i = 0; i < networkGameState.Scores.Count; i++)
                 sorted.Add(networkGameState.Scores[i]);
-            sorted.Sort((a, b) => b.Score.CompareTo(a.Score));
+            sorted.Sort(ScoreEntry.CompareForRanking);
             m_PersistentGameState.SetFinalScoreboard(sorted);
 
             yield return new WaitForSeconds(wait);

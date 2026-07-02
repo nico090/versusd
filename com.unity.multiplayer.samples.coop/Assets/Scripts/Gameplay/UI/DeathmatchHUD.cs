@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text;
 using Mirror;
+using Unity.BossRoom.ConnectionManagement;
 using Unity.BossRoom.Gameplay.GameState;
 using UnityEngine;
 using UnityEngine.UI;
@@ -78,11 +79,23 @@ namespace Unity.BossRoom.Gameplay.UI
             var sorted = new List<ScoreEntry>(m_NetworkGameState.Scores.Count);
             for (int i = 0; i < m_NetworkGameState.Scores.Count; i++)
                 sorted.Add(m_NetworkGameState.Scores[i]);
-            sorted.Sort((a, b) => b.Score.CompareTo(a.Score));
+            sorted.Sort(ScoreEntry.CompareForRanking);
+
+            // Highlight our own row. Match on the stable master-server PlayerId — ScoreEntry.ClientId
+            // is the server-side connectionId, which a remote client never learns (its own
+            // LocalConnectionId is always 0), so it can't be used to find "me".
+            string localPlayerId = ClientAuthPayload.Current?.PlayerId;
 
             var sb = new StringBuilder();
+            sb.AppendLine($"<b>Meta: {NetworkGameState.TargetScore} pts</b>\n");
             for (int i = 0; i < sorted.Count; i++)
-                sb.AppendLine($"{i + 1}. {sorted[i].PlayerName}  {sorted[i].Score}pts");
+            {
+                bool isLocal = !string.IsNullOrEmpty(localPlayerId) && sorted[i].PlayerId == localPlayerId;
+                if (isLocal)
+                    sb.AppendLine($"<b>> {sorted[i].PlayerName}  {sorted[i].Score}pts</b>");
+                else
+                    sb.AppendLine($"{i + 1}. {sorted[i].PlayerName}  {sorted[i].Score}pts");
+            }
             m_ScoreboardText.text = sb.ToString();
         }
 

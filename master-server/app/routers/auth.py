@@ -1,11 +1,13 @@
 import uuid
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError
 
+from ..config import settings
 from ..database import get_db
-from ..models import User
+from ..models import User, utcnow
 from ..ratelimit import auth_rate_limit
 from ..schemas import AuthRequest, TokenResponse
 from ..security import create_access_token, hash_password, verify_password
@@ -64,11 +66,20 @@ def guest(db: Database = Depends(get_db)):
     player_id = str(uuid.uuid4())
     # Short, readable guest handle derived from the id.
     username = f"Guest_{player_id[:8]}"
+    # Guests are ephemeral: stamp an expiry so the TTL index prunes abandoned
+    # accounts (guest_ttl_hours == 0 disables pruning). Keeps guest spam from
+    # growing the users collection without bound.
+    expires_at = (
+        utcnow() + timedelta(hours=settings.guest_ttl_hours)
+        if settings.guest_ttl_hours > 0
+        else None
+    )
     user = User(
         player_id=player_id,
         username=username,
         password_hash=None,
         is_guest=True,
+        guest_expires_at=expires_at,
     )
     db.users.insert_one(user.to_doc())
     return _token_for(user)

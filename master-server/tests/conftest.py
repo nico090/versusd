@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 from app import database
 from app.config import settings
 from app.main import app
-from app.ratelimit import auth_rate_limit
+from app.ratelimit import auth_rate_limit, lobby_rate_limit
 
 SERVER_SECRET = settings.server_shared_secret
 SERVER_HEADERS = {"X-Server-Secret": SERVER_SECRET}
@@ -37,9 +37,10 @@ def client_fixture():
     database._client = mongo_client
     database._db = test_db
 
-    # Disable per-IP auth throttling in tests (shared singleton state would
-    # otherwise leak across tests and trip the limiter).
+    # Disable per-IP throttling in tests (shared singleton state would otherwise
+    # leak across tests and trip the limiter).
     app.dependency_overrides[auth_rate_limit] = lambda: None
+    app.dependency_overrides[lobby_rate_limit] = lambda: None
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

@@ -1,0 +1,38 @@
+name: master-server tests
+
+on:
+  push:
+    paths:
+      - "master-server/**"
+      - ".github/workflows/master-server-tests.yml"
+  pull_request:
+    paths:
+      - "master-server/**"
+      - ".github/workflows/master-server-tests.yml"
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: master-server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: master-server/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        # Tests use mongomock, so no live MongoDB is needed. The secret guard is
+        # bypassed via REQUIRE_SECURE_SECRETS=false (set in conftest too).
+        env:
+          REQUIRE_SECURE_SECRETS: "false"
+          SECRET_KEY: test-secret-key
+          SERVER_SHARED_SECRET: test-server-secret
+        run: python -m pytest -q

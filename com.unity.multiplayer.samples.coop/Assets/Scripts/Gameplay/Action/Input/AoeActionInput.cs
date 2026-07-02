@@ -51,7 +51,8 @@ namespace Unity.BossRoom.Gameplay.Actions
 
         void Update()
         {
-            // TODO: convert to mouse position using new input system
+            // Pointer position comes from the new Input System via m_PointAction (a Vector2
+            // screen position bound to Mouse/Touch), which we raycast onto the NavMesh plane.
             if (PlaneRaycast(k_Plane, m_Camera.ScreenPointToRay(m_PointAction.action.ReadValue<Vector2>()), out Vector3 pointOnPlane) &&
                 NavMesh.SamplePosition(pointOnPlane, out m_NavMeshHit, 2f, NavMesh.AllAreas))
             {

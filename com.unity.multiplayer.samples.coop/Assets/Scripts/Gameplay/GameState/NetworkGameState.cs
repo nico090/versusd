@@ -25,6 +25,18 @@ namespace Unity.BossRoom.Gameplay.GameState
             PlayerName == other.PlayerName &&
             PlayerNumber == other.PlayerNumber &&
             Score == other.Score;
+
+        /// <summary>
+        /// Deterministic ranking order: highest score first, ties broken by ascending
+        /// PlayerNumber. Every client/server sorts identically, so they all agree on the
+        /// ordering — and therefore on who the winner is (sorted[0]). A plain score-only
+        /// sort left tied rows in an undefined order, so different peers could disagree.
+        /// </summary>
+        public static int CompareForRanking(ScoreEntry a, ScoreEntry b)
+        {
+            int byScore = b.Score.CompareTo(a.Score);
+            return byScore != 0 ? byScore : a.PlayerNumber.CompareTo(b.PlayerNumber);
+        }
     }
 
     /// <summary>
@@ -35,6 +47,13 @@ namespace Unity.BossRoom.Gameplay.GameState
     public class NetworkGameState : NetworkBehaviour
     {
         public const float MatchDuration = 300f;
+
+        /// <summary>
+        /// Score that wins the match. First player to reach it ends the game (free-for-all).
+        /// The countdown timer is only a fallback: if nobody reaches this before time runs
+        /// out, the highest score wins.
+        /// </summary>
+        public const int TargetScore = 25;
 
         [SyncVar(hook = nameof(OnTimeRemainingSync))]
         float m_TimeRemaining = MatchDuration;
@@ -73,6 +92,28 @@ namespace Unity.BossRoom.Gameplay.GameState
                 PlayerNumber = playerNumber,
                 Score = 0,
             });
+        }
+
+        /// <summary>Server-only: true once any player's score has reached <see cref="TargetScore"/>.</summary>
+        public bool HasPlayerReachedTarget()
+        {
+            for (int i = 0; i < Scores.Count; i++)
+                if (Scores[i].Score >= TargetScore) return true;
+            return false;
+        }
+
+        /// <summary>Server-only: remove a player from the scoreboard (e.g. on disconnect),
+        /// so a player who left can't linger on the board or "win" while absent.</summary>
+        public void RemovePlayer(ulong clientId)
+        {
+            for (int i = 0; i < Scores.Count; i++)
+            {
+                if (Scores[i].ClientId == clientId)
+                {
+                    Scores.RemoveAt(i);
+                    return;
+                }
+            }
         }
 
         /// <summary>Server-only: apply a score delta (positive or negative) to a player.</summary>

@@ -1,12 +1,16 @@
 """Minimal in-memory, per-client sliding-window rate limiter.
 
-Dependency-free (no Redis/slowapi). Adequate for a single-process master server;
-swap for a shared store if you scale to multiple workers."""
+Dependency-free (no Redis/slowapi). NOTE: state is per-process, so with more than
+one uvicorn/gunicorn worker each worker counts independently and the effective
+limit is multiplied by the worker count. Run the master server with a single
+worker, or swap this for a shared store (e.g. Redis) before scaling out."""
 
 import time
 from collections import defaultdict, deque
 
 from fastapi import HTTPException, Request, status
+
+from .config import settings
 
 
 class RateLimiter:
@@ -30,5 +34,14 @@ class RateLimiter:
         hits.append(now)
 
 
-# 10 auth attempts per minute per client IP.
-auth_rate_limit = RateLimiter(max_requests=10, window_seconds=60.0)
+# Auth attempts per client IP (brute-force / guest-spam guard).
+auth_rate_limit = RateLimiter(
+    max_requests=settings.auth_rate_limit_max,
+    window_seconds=settings.auth_rate_limit_window_seconds,
+)
+
+# Lobby create/join per client IP (curbs mass lobby creation / dedicated-server spawns).
+lobby_rate_limit = RateLimiter(
+    max_requests=settings.lobby_rate_limit_max,
+    window_seconds=settings.lobby_rate_limit_window_seconds,
+)

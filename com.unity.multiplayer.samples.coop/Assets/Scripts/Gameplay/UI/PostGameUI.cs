@@ -90,7 +90,7 @@ namespace Unity.BossRoom.Gameplay.UI
             var sorted = new List<ScoreEntry>(scoreboard.Count);
             for (int i = 0; i < scoreboard.Count; i++)
                 sorted.Add(scoreboard[i]);
-            sorted.Sort((a, b) => b.Score.CompareTo(a.Score));
+            sorted.Sort(ScoreEntry.CompareForRanking);
 
             bool localWon = !string.IsNullOrEmpty(localPlayerId) && sorted[0].PlayerId == localPlayerId;
 
@@ -113,7 +113,7 @@ namespace Unity.BossRoom.Gameplay.UI
             var sorted = new List<ScoreEntry>(scoreboard.Count);
             for (int i = 0; i < scoreboard.Count; i++)
                 sorted.Add(scoreboard[i]);
-            sorted.Sort((a, b) => b.Score.CompareTo(a.Score));
+            sorted.Sort(ScoreEntry.CompareForRanking);
 
             var sb = new StringBuilder();
             sb.AppendLine("<b>— Clasificación final —</b>\n");
