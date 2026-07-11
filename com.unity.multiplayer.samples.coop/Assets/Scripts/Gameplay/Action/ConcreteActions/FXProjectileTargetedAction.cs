@@ -76,9 +76,51 @@ namespace Unity.BossRoom.Gameplay.Actions
                 if (m_DamageableTarget != null)
                 {
                     m_DamageableTarget.ReceiveHitPoints(clientCharacter, -Config.Projectiles[0].Damage);
+
+                    // Area damage on impact (when Config.Radius > 0): splash onto other nearby
+                    // foes so the bolt isn't strictly single-target and combat feels punchier.
+                    if (Config.Radius > 0f)
+                    {
+                        ApplySplashDamage(clientCharacter, m_DamageableTarget.transform.position, m_DamageableTarget.NetworkObjectId);
+                    }
                 }
             }
             return true;
+        }
+
+        // Scratch buffer for the splash overlap. Server runs Actions on the main thread, so a
+        // shared static is safe and avoids per-hit allocations.
+        static readonly Collider[] s_SplashHits = new Collider[16];
+
+        /// <summary>
+        /// Deals area-of-effect damage to foes within Config.Radius of the impact point,
+        /// skipping the caster and the primary target (already hit). Uses SplashDamage when set,
+        /// otherwise falls back to the projectile's main damage.
+        /// </summary>
+        void ApplySplashDamage(ServerCharacter caster, Vector3 center, ulong primaryTargetId)
+        {
+            int splash = Config.SplashDamage > 0 ? Config.SplashDamage : Config.Projectiles[0].Damage;
+            int mask = LayerMask.GetMask("PCs", "NPCs");
+            int num = Physics.OverlapSphereNonAlloc(center, Config.Radius, s_SplashHits, mask);
+
+            for (int i = 0; i < num; i++)
+            {
+                var damageable = s_SplashHits[i].GetComponent<IDamageable>();
+                if (damageable == null || !damageable.IsDamageable()) continue;
+                if (damageable.NetworkObjectId == caster.NetworkObjectId) continue;   // never self
+                if (damageable.NetworkObjectId == primaryTargetId) continue;          // already hit
+
+                // Only splash actual foes (same faction rule the primary target uses).
+                var sc = s_SplashHits[i].GetComponentInParent<ServerCharacter>();
+                if (sc != null)
+                {
+                    bool isPvPPcVsPc = GameDataSource.IsPvPMode && !caster.IsNpc && !sc.IsNpc;
+                    bool isInvalidFaction = sc.IsNpc == (Config.IsFriendly ^ caster.IsNpc);
+                    if (!isPvPPcVsPc && isInvalidFaction) continue;
+                }
+
+                damageable.ReceiveHitPoints(caster, -splash);
+            }
         }
 
         public override void Cancel(ServerCharacter serverCharacter)

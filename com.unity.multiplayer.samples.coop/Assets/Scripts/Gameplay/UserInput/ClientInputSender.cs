@@ -6,7 +6,6 @@ using Unity.BossRoom.Gameplay.GameplayObjects.Character;
 using Unity.BossRoom.Infrastructure;
 using Mirror;
 using UnityEngine;
-using UnityEngine.AI;
 using UnityEngine.Assertions;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -26,8 +25,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
         LayerMask m_GroundLayerMask;
         LayerMask m_ActionLayerMask;
-        const float k_MaxNavMeshDistance = 1f;
-        RaycastHitComparer m_RaycastHitComparer;
 
         [SerializeField] ServerCharacter m_ServerCharacter;
         [SerializeField] InputActionReference m_TargetAction;
@@ -75,7 +72,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
         int m_ActionRequestCount;
 
         BaseActionInput m_CurrentSkillInput;
-        bool m_MoveRequest;
         // true while the last frame sent a directional (WASD/stick) move, so we know
         // to send a single "stop" when the stick is released.
         bool m_WasDirectMoving;
@@ -83,11 +79,17 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
         // ── Continuous auto-target (aim-based "line of fire" lock) ───────────────
         const float k_AutoTargetRange = 8f;        // meters
-        // Half-cone around the aim direction. Kept fairly tight so the lock behaves like
-        // a line of fire (the foe you're actually pointing at) rather than "anything in
-        // front". Widen toward ~70 if gamepad/mobile aiming feels too unforgiving.
-        const float k_AutoTargetMaxAngle = 45f;
+        // Half-cone around the aim direction. Widened from the original 45° so the soft-lock
+        // can grab foes that are off to the side / not directly faced, which combats the
+        // "combat feels stiff" complaint. Manual left-click selection (see m_ManualTargetUntil)
+        // still overrides this and can pick foes in any direction.
+        const float k_AutoTargetMaxAngle = 80f;
         const float k_AutoTargetInterval = 0.15f;  // re-evaluate ~6x/sec
+        // After a deliberate left-click selection, don't let the continuous auto-target steal
+        // the pick for this long (as long as the chosen foe stays alive). Lets the player lock
+        // an enemy they aren't facing and keep firing at it.
+        const float k_ManualTargetHoldSeconds = 3f;
+        float m_ManualTargetUntil;
         // How strongly alignment with the aim beats proximity when scoring candidates.
         // Higher = the foe most directly in the line of fire wins even if a closer foe
         // sits off to the side. Score is degrees-off-aim * weight + distance-in-metres.
@@ -170,7 +172,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
             m_ActionLayerMask = LayerMask.GetMask("PCs", "NPCs", "Ground");
             m_AutoTargetMask = LayerMask.GetMask("PCs", "NPCs");
             m_LineOfFireMask = LayerMask.GetMask("Default", "Environment");
-            m_RaycastHitComparer = new RaycastHitComparer();
 
             // Resolve the directional-movement action. Prefer the serialized reference, but
             // fall back to finding "Move" in the same asset as the other (wired) actions, so
@@ -264,13 +265,15 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
             m_ActionRequestCount = 0;
 
-            // Continuous directional movement (WASD / gamepad / mobile joystick).
-            // Takes priority over click-to-move and bypasses the EventSystem guard so
-            // it keeps working regardless of any stray selected UI object.
+            // Movement is directional only (WASD / gamepad / on-screen joystick). Click-to-move
+            // was removed on purpose so that aiming/firing with the mouse no longer competes
+            // with a walk-to-cursor command (left click just selects a target now).
             Vector2 moveInput = m_MoveActionResolved != null ? m_MoveActionResolved.ReadValue<Vector2>() : Vector2.zero;
+            // The mobile on-screen joystick feeds movement through here too (it builds itself at
+            // runtime; see MobileMovementJoystick).
+            moveInput = Vector2.ClampMagnitude(moveInput + MobileMovementJoystick.MovementInput, 1f);
             if (moveInput.sqrMagnitude > 0.01f)
             {
-                m_MoveRequest = false; // don't also fire a click-move this frame
                 if ((Time.time - m_LastSentMove) > k_MoveSendRateSeconds)
                 {
                     m_LastSentMove = Time.time;
@@ -284,40 +287,28 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 m_WasDirectMoving = false;
                 m_ServerCharacter.CmdSetMovementDirection(Vector3.zero);
             }
-
-            if (EventSystem.current.currentSelectedGameObject != null)
-            {
-                return;
-            }
-
-            if (m_MoveRequest)
-            {
-                m_MoveRequest = false;
-                if ((Time.time - m_LastSentMove) > k_MoveSendRateSeconds)
-                {
-                    m_LastSentMove = Time.time;
-                    var ray = m_MainCamera.ScreenPointToRay(m_PointAction.action.ReadValue<Vector2>());
-                    var groundHits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_MouseInputRaycastDistance, m_GroundLayerMask);
-
-                    if (groundHits > 0)
-                    {
-                        if (groundHits > 1)
-                            Array.Sort(k_CachedHit, 0, groundHits, m_RaycastHitComparer);
-
-                        bool sampled = NavMesh.SamplePosition(k_CachedHit[0].point, out var hit, k_MaxNavMeshDistance, NavMesh.AllAreas);
-
-                        if (sampled)
-                        {
-                            m_ServerCharacter.CmdSendCharacterInput(hit.position);
-                            ClientMoveEvent?.Invoke(hit.position);
-                        }
-                    }
-                }
-            }
         }
 
         void PerformSkill(ActionID actionID, SkillTriggerStyle triggerStyle, ulong targetId = 0)
         {
+            var actionProto = GameDataSource.Instance.GetActionPrototypeByID(actionID);
+
+            // Self-targeted support skills (e.g. the Mage's Healing Touch): always cast on
+            // ourselves, with no targeting and no movement, no matter what's selected or under
+            // the cursor. Gated to friendly Melee so only the self-heal takes this path
+            // (Revive/Emote are friendly too but use their own logics).
+            if (actionProto.Config.IsFriendly && actionProto.Config.Logic == ActionLogic.Melee)
+            {
+                var selfData = new ActionRequestData
+                {
+                    ActionID = actionID,
+                    ShouldClose = false,
+                    CancelMovement = true,
+                };
+                SendInput(selfData);
+                return;
+            }
+
             Transform hitTransform = null;
 
             if (targetId != 0)
@@ -346,6 +337,15 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 }
 
                 hitTransform = networkedHitIndex >= 0 ? k_CachedHit[networkedHitIndex].transform : null;
+
+                // Forgiving selection: if the click didn't land squarely on a character, grab
+                // the nearest valid enemy to where the cursor hit the ground. Lets you select
+                // foes you aren't directly facing and makes target-picking far less fiddly.
+                if (hitTransform == null && triggerStyle == SkillTriggerStyle.MouseClick && numHits > 0
+                    && TryGetEnemyNearestToPoint(k_CachedHit[0].point, k_SelectAssistRadius, out var nearestEnemy))
+                {
+                    hitTransform = nearestEnemy.transform;
+                }
             }
 
             if (GetActionRequestForTarget(hitTransform, actionID, triggerStyle, out ActionRequestData playerAction))
@@ -502,13 +502,20 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
             if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
             {
+                // Right click: cast the hero's primary power (Skill1).
                 if (m_Skill1Action.action.WasPressedThisFrame())
                     RequestAction(CharacterClass.Skill1.ActionID, SkillTriggerStyle.MouseClick);
 
-                if (m_TargetAction.action.WasPressedThisFrame())
+                // Left click: only selects the character to attack. Click-to-move was removed
+                // on purpose — movement is WASD / stick / on-screen joystick — so aiming and
+                // firing no longer fight with a walk-to-cursor command. On touch we ignore the
+                // press while the movement joystick is engaged, so starting to walk doesn't also
+                // select a random target.
+                if (m_TargetAction.action.WasPressedThisFrame() && !MobileMovementJoystick.IsActive)
+                {
+                    m_ManualTargetUntil = Time.time + k_ManualTargetHoldSeconds;
                     RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype.ActionID, SkillTriggerStyle.MouseClick);
-                else if (m_TargetAction.action.IsPressed())
-                    m_MoveRequest = true;
+                }
             }
         }
 
@@ -603,6 +610,18 @@ namespace Unity.BossRoom.Gameplay.UserInput
         {
             if (Time.time - m_LastAutoTarget < k_AutoTargetInterval) return;
             m_LastAutoTarget = Time.time;
+
+            // Respect a recent manual pick: keep the player's chosen foe as long as it's still
+            // alive, so the soft-lock doesn't yank the target back to whatever's in front.
+            if (Time.time < m_ManualTargetUntil)
+            {
+                var manual = NetworkIdentityUtils.FindByNetId((uint)m_ServerCharacter.TargetId);
+                if (manual != null && manual.TryGetComponent<ServerCharacter>(out var manualChar)
+                    && manualChar.LifeState == LifeState.Alive)
+                {
+                    return;
+                }
+            }
 
             Vector3 myPos = m_PhysicsWrapper.Transform.position;
             Vector3 aimDir = GetAimDirection();
@@ -718,6 +737,40 @@ namespace Unity.BossRoom.Gameplay.UserInput
             if (best == null) return false;
             foe = best.netIdentity;
             return true;
+        }
+
+        // Radius (metres) around the cursor's ground point within which a left-click will
+        // snap onto an enemy even if you didn't click exactly on it.
+        const float k_SelectAssistRadius = 4f;
+
+        /// <summary>
+        /// Finds the nearest valid enemy to a world point (used for forgiving click-selection).
+        /// Enemies are alive NPCs, plus other players in PvP mode; never ourselves.
+        /// </summary>
+        bool TryGetEnemyNearestToPoint(Vector3 point, float radius, out ServerCharacter enemy)
+        {
+            enemy = null;
+            ulong myNetId = m_ServerCharacter.NetworkObjectId;
+            int numHits = Physics.OverlapSphereNonAlloc(point, radius, m_AutoTargetHits, m_AutoTargetMask);
+
+            float bestDistSqr = radius * radius;
+            for (int i = 0; i < numHits; i++)
+            {
+                var candidate = m_AutoTargetHits[i].GetComponentInParent<ServerCharacter>();
+                if (candidate == null) continue;
+                if ((ulong)(uint)candidate.netId == myNetId) continue;
+                if (candidate.LifeState != LifeState.Alive) continue;
+                if (!candidate.IsNpc && !GameDataSource.IsPvPMode) continue;
+
+                float distSqr = (candidate.physicsWrapper.Transform.position - point).sqrMagnitude;
+                if (distSqr < bestDistSqr)
+                {
+                    bestDistSqr = distSqr;
+                    enemy = candidate;
+                }
+            }
+
+            return enemy != null;
         }
 
         void UpdateAction1()

@@ -426,6 +426,17 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         }
 
         /// <summary>
+        /// Directly apply an HP change to this character, routed through the normal
+        /// healing/damage pipeline (respects the alive-check, healing buffs, clamping, etc.).
+        /// Used by self-targeted actions such as the Mage's self-heal, which don't go through
+        /// the usual foe-detection path. Positive = heal, negative = damage.
+        /// </summary>
+        public void ApplyHealthChange(ServerCharacter inflicter, int hitPoints)
+        {
+            m_DamageReceiver.ReceiveHitPoints(inflicter, hitPoints);
+        }
+
+        /// <summary>
         /// Receive an HP change from somewhere. Could be healing or damage.
         /// </summary>
         /// <param name="inflicter">Person dishing out this damage/healing. Can be null. </param>

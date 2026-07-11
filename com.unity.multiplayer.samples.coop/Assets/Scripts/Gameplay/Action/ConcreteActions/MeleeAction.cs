@@ -36,6 +36,18 @@ namespace Unity.BossRoom.Gameplay.Actions
 
         public override bool OnStart(ServerCharacter serverCharacter)
         {
+            if (Config.IsFriendly)
+            {
+                // Self-only support action (e.g. the Mage's Healing Touch): no targeting at
+                // all — it always affects the caster. The actual heal is applied at exec time
+                // in OnUpdate. We still force the target to be ourselves so the client-side
+                // heal FX spawns on the caster.
+                Data.TargetIds = new ulong[] { serverCharacter.NetworkObjectId };
+                serverCharacter.serverAnimationHandler.SetTrigger(Config.Anim);
+                serverCharacter.clientCharacter.RpcPlayAction(Data);
+                return true;
+            }
+
             ulong target = (Data.TargetIds != null && Data.TargetIds.Length > 0) ? Data.TargetIds[0] : serverCharacter.TargetId;
             IDamageable foe = DetectFoe(serverCharacter, target);
             Debug.Log($"[AttackDebug] MeleeAction.OnStart on {serverCharacter.name}: anim='{Config.Anim}', requestedTarget={target}, DetectFoe={(foe != null ? foe.NetworkObjectId.ToString() : "NULL")}");
@@ -70,6 +82,15 @@ namespace Unity.BossRoom.Gameplay.Actions
             if (!m_ExecutionFired && (Time.time - TimeStarted) >= Config.ExecTimeSeconds)
             {
                 m_ExecutionFired = true;
+
+                if (Config.IsFriendly)
+                {
+                    // Self-heal: Amount is stored negative (like damage), so -Amount is the
+                    // positive HP restored to the caster.
+                    clientCharacter.ApplyHealthChange(clientCharacter, -Config.Amount);
+                    return true;
+                }
+
                 var foe = DetectFoe(clientCharacter, m_ProvisionalTarget);
                 Debug.Log($"[AttackDebug] MeleeAction exec on {clientCharacter.name}: DetectFoe={(foe != null ? foe.NetworkObjectId.ToString() : "NULL")}, dealing {Config.Amount} dmg");
                 if (foe != null)
