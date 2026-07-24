@@ -36,7 +36,7 @@ namespace Unity.BossRoom.Gameplay.UI
             if (GetComponent<Canvas>() == null && m_CanvasGroup != null)
             {
                 InjectSubtitle(m_CanvasGroup.transform,
-                    "Pick where the match runs: dedicated server (VPS) or your PC (P2P)");
+                    "You host the match; the VPS relay forwards traffic (no port-forwarding needed)");
 
                 // The SessionUI prefab never wired a dedicated-server toggle, so
                 // m_UseDedicatedServer stays null and OnCreateClick() forces every
@@ -61,19 +61,33 @@ namespace Unity.BossRoom.Gameplay.UI
         public void OnCreateClick()
         {
             bool isPrivate = m_IsPrivate != null && m_IsPrivate.isOn;
-            bool useDedicated = m_UseDedicatedServer != null && m_UseDedicatedServer.isOn;
+            // Dedicated is only an option when the build enables it; otherwise every room is
+            // relay-hosted regardless of the (hidden) toggle's state.
+            bool dedicatedAllowed = m_SessionUIMediator != null && m_SessionUIMediator.DedicatedServersEnabled;
+            bool useDedicated = dedicatedAllowed && m_UseDedicatedServer != null && m_UseDedicatedServer.isOn;
             string password = (isPrivate && m_PasswordField != null) ? m_PasswordField.text : null;
             string name = m_SessionNameInputField != null ? m_SessionNameInputField.text : "Room";
 
             if (useDedicated)
                 m_SessionUIMediator?.CreateDedicatedSessionRequest(name, isPrivate, password);
             else
+                // Relay: player hosts, the VPS relay forwards traffic (no port-forwarding).
                 m_SessionUIMediator?.CreateSessionRequest(name, isPrivate, password);
+        }
+
+        // Hide the dedicated-server toggle when the build has dedicated servers disabled, so
+        // Create Room only offers relay hosting. Called from Show() (after the mediator is set).
+        void ApplyDedicatedToggleVisibility()
+        {
+            if (m_UseDedicatedServer == null) return;
+            bool enabled = m_SessionUIMediator != null && m_SessionUIMediator.DedicatedServersEnabled;
+            m_UseDedicatedServer.gameObject.SetActive(enabled);
         }
 
         public void Show()
         {
             if (m_CanvasGroup) { m_CanvasGroup.alpha = 1f; m_CanvasGroup.blocksRaycasts = true; m_CanvasGroup.interactable = true; }
+            ApplyDedicatedToggleVisibility();
         }
 
         public void Hide()
@@ -156,7 +170,7 @@ namespace Unity.BossRoom.Gameplay.UI
             labelGO.transform.SetParent(go.transform, false);
             var lt = labelGO.AddComponent<Text>();
             lt.font = GetFont();
-            lt.text = "Dedicated server  (hosted on VPS — spawns a container)";
+            lt.text = "Dedicated server  (VPS container — otherwise hosted via relay)";
             lt.fontSize = 12;
             lt.color = new Color(0.88f, 0.88f, 0.88f);
             lt.alignment = TextAnchor.MiddleLeft;
@@ -167,10 +181,9 @@ namespace Unity.BossRoom.Gameplay.UI
             var toggle = go.AddComponent<Toggle>();
             toggle.targetGraphic = bgGO.GetComponent<Image>();
             toggle.graphic = ck;
-            // Default to dedicated VPS — the "start with IP" P2P path is the
-            // explicit opt-out, so creating a room should host on the VPS unless
-            // the player unchecks this.
-            toggle.isOn = true;
+            // Default OFF: rooms are relay-hosted (player hosts, VPS just forwards) unless the
+            // player opts into a dedicated VPS container here.
+            toggle.isOn = false;
             m_UseDedicatedServer = toggle;
         }
 
@@ -237,10 +250,9 @@ namespace Unity.BossRoom.Gameplay.UI
 
             // ── Dedicated server toggle ───────────────────────────────────────
             m_UseDedicatedServer = MakeToggle(bg.transform,
-                "Dedicated server  (hosted on VPS, better for all players)", y);
-            // Default on — VPS is the primary path; the "start with IP" P2P flow
-            // is the explicit opt-out (uncheck this).
-            m_UseDedicatedServer.isOn = true;
+                "Dedicated server  (VPS container — otherwise hosted via relay)", y);
+            // Default off — relay hosting is the primary (cheap) path; dedicated is opt-in.
+            m_UseDedicatedServer.isOn = false;
             y -= 40f;
 
             MakeDivider(bg.transform, y);

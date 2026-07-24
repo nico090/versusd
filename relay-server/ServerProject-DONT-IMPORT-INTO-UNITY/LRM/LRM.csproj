@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <!-- Background (concurrent) GC so a gen2 collection can't stop-the-world-pause the single
+         thread that drives kcp2k's tick (HeartbeatLoop -> transport.Update -> TickIncoming/Outgoing).
+         A pause >= the kcp2k ConnectionTimeout (10s) reads to every connected client as a
+         simultaneous timeout — exactly the symptom the removed GC.Collect() used to cause. ServerGC
+         is off on purpose: on a low-core VPS, Workstation + Concurrent GC has lower pause/overhead
+         than Server GC's per-core heaps and background threads. -->
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <!-- Costura.Fody (merges deps into a single exe) removed 2026-07-21: pointless inside a
+       Docker image (the whole publish folder is COPYed in already) and an EOL-package
+       compatibility risk not worth carrying through the net5.0 -> net8.0 bump. -->
+  <ItemGroup>
+    <PackageReference Include="Grapevine" Version="5.0.0-rc.5" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+
+</Project>

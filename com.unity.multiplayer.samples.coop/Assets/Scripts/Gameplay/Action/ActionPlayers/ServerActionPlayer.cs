@@ -28,6 +28,27 @@ namespace Unity.BossRoom.Gameplay.Actions
         /// </summary>
         private const float k_MaxQueueTimeDepth = 1.6f;
 
+        /// <summary>
+        /// Minimum cooldown forced on the self-heal (the only friendly Melee action — the Mage's
+        /// Healing Touch). Its asset ships with ReuseTimeSeconds 0, which made it spammable and
+        /// effectively infinite HP. Enforced here so it can't be lost to the Editor's asset cache.
+        /// </summary>
+        private const float k_MinSelfHealReuseSeconds = 10f;
+
+        /// <summary>
+        /// The reuse (cooldown) time actually enforced for an action: whatever its config says,
+        /// but never less than the code-side floor for actions that need one.
+        /// </summary>
+        private static float GetEffectiveReuseTime(ActionConfig config)
+        {
+            if (config.IsFriendly && config.Logic == ActionLogic.Melee)
+            {
+                return Mathf.Max(config.ReuseTimeSeconds, k_MinSelfHealReuseSeconds);
+            }
+
+            return config.ReuseTimeSeconds;
+        }
+
         private ActionRequestData m_PendingSynthesizedAction = new ActionRequestData();
         private bool m_HasPendingSynthesizedAction;
 
@@ -144,7 +165,7 @@ namespace Unity.BossRoom.Gameplay.Actions
             {
                 var abilityConfig = GameDataSource.Instance.GetActionPrototypeByID(actionID).Config;
 
-                float reuseTime = abilityConfig.ReuseTimeSeconds;
+                float reuseTime = GetEffectiveReuseTime(abilityConfig);
                 if (reuseTime > 0 && Time.time - lastTimeUsed < reuseTime)
                 {
                     // still needs more time!
@@ -173,7 +194,7 @@ namespace Unity.BossRoom.Gameplay.Actions
         {
             if (m_Queue.Count > 0)
             {
-                float reuseTime = m_Queue[0].Config.ReuseTimeSeconds;
+                float reuseTime = GetEffectiveReuseTime(m_Queue[0].Config);
                 if (reuseTime > 0
                     && m_LastUsedTimestamps.TryGetValue(m_Queue[0].ActionID, out float lastTimeUsed)
                     && Time.time - lastTimeUsed < reuseTime)
@@ -204,6 +225,14 @@ namespace Unity.BossRoom.Gameplay.Actions
 
                 // remember the moment when we successfully used this Action!
                 m_LastUsedTimestamps[m_Queue[0].ActionID] = Time.time;
+
+                // Let the owning client know this action just went on cooldown, so its UI
+                // (e.g. the action-bar radial overlay) can reflect it — the client has no
+                // other way to learn about ReuseTimeSeconds, which only lives server-side.
+                if (reuseTime > 0)
+                {
+                    m_ServerCharacter.NotifyActionCooldownStarted(m_Queue[0].ActionID, reuseTime);
+                }
 
                 if (m_Queue[0].Config.ExecTimeSeconds == 0 && m_Queue[0].Config.BlockingMode == BlockingModeType.OnlyDuringExecTime)
                 {

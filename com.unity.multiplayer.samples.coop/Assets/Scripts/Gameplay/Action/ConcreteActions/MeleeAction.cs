@@ -34,6 +34,12 @@ namespace Unity.BossRoom.Gameplay.Actions
         private bool m_ExecutionFired;
         private ulong m_ProvisionalTarget;
 
+        /// <summary>
+        /// Hard ceiling on a single self-heal (the Mage's Healing Touch), as a fraction of the
+        /// caster's maximum HP. Keeps the heal a comeback tool instead of a full reset.
+        /// </summary>
+        const float k_SelfHealMaxFractionOfMaxHp = 0.25f;
+
         public override bool OnStart(ServerCharacter serverCharacter)
         {
             if (Config.IsFriendly)
@@ -86,8 +92,23 @@ namespace Unity.BossRoom.Gameplay.Actions
                 if (Config.IsFriendly)
                 {
                     // Self-heal: Amount is stored negative (like damage), so -Amount is the
-                    // positive HP restored to the caster.
-                    clientCharacter.ApplyHealthChange(clientCharacter, -Config.Amount);
+                    // positive HP restored to the caster. It is capped here rather than in the
+                    // .asset both because a flat 250 HP was a full heal for every hero (making
+                    // the Mage unkillable) and because a code-side cap can't be silently
+                    // reverted by Unity's asset cache at build time.
+                    int maxHitPoints = clientCharacter.CharacterClass != null && clientCharacter.CharacterClass.BaseHP != null
+                        ? clientCharacter.CharacterClass.BaseHP.Value
+                        : 0;
+                    int healAmount = -Config.Amount;
+                    if (maxHitPoints > 0)
+                    {
+                        healAmount = Mathf.Min(healAmount, Mathf.RoundToInt(maxHitPoints * k_SelfHealMaxFractionOfMaxHp));
+                    }
+
+                    if (healAmount > 0)
+                    {
+                        clientCharacter.ApplyHealthChange(clientCharacter, healAmount);
+                    }
                     return true;
                 }
 

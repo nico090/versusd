@@ -104,4 +104,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bc786b418ae0be4478a3de7127adc583, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  masterServerUrl: http://localhost:8000
+  masterServerUrl: http://200.45.208.55:8000

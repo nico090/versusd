@@ -171,9 +171,17 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
         /// Once all waves are completed, it waits a restart time before termination.
         /// </summary>
         /// <returns></returns>
+        // Max random delay (seconds) before a spawner's very first wave. Several portals
+        // often come into player range on the same frame; without this they'd all dump
+        // their opening wave simultaneously, producing the "swarm on entry" spike. A small
+        // random offset spreads those first waves out over a couple of seconds.
+        const float k_InitialSpawnStaggerMax = 3f;
+
         IEnumerator SpawnWaves()
         {
             m_WaveIndex = 0;
+
+            yield return new WaitForSeconds(UnityEngine.Random.Range(0f, k_InitialSpawnStaggerMax));
 
             while (m_WaveIndex < m_NumberOfWaves)
             {

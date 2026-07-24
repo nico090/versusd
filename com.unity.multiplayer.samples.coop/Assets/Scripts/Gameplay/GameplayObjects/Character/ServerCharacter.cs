@@ -316,7 +316,24 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 return;
             }
 
-            if (LifeState == LifeState.Alive && !m_Movement.IsPerformingForcedMovement())
+            if (LifeState != LifeState.Alive)
+            {
+                return;
+            }
+
+            // A zero direction is a "stop" and must ALWAYS get through. It used to be dropped
+            // along with everything else while a forced move (knockback / charge) was running,
+            // and since the client only sends the stop once, the character kept running for
+            // ever afterwards. SetMovementDirection(zero) only cancels directional movement,
+            // so it can't stomp the knockback or charge that's in progress.
+            bool isStopRequest = worldDirection.sqrMagnitude < 0.0001f;
+
+            if (!isStopRequest && m_Movement.IsPerformingForcedMovement())
+            {
+                return;
+            }
+
+            if (!isStopRequest)
             {
                 // moving interrupts an interruptible action (same rule as click-move)
                 if (m_ServerActionPlayer.GetActiveActionInfo(out ActionRequestData data))
@@ -327,9 +344,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                         m_ServerActionPlayer.ClearActions(false);
                     }
                 }
-
-                m_Movement.SetMovementDirection(worldDirection);
             }
+
+            m_Movement.SetMovementDirection(worldDirection);
         }
 
         // ACTION SYSTEM
@@ -337,6 +354,27 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         /// <summary>
         /// Client->Server RPC that sends a request to play an action.
         /// </summary>
+        /// <summary>
+        /// Fired client-side (owning client only) when one of this character's actions goes on
+        /// cooldown, so UI (the action bar) can show it. See <see cref="NotifyActionCooldownStarted"/>.
+        /// </summary>
+        public event Action<ActionID, float> ActionCooldownStarted;
+
+        /// <summary>
+        /// Server-only: tells the owning client that the given action just started its cooldown,
+        /// so its UI can animate the remaining time. Called from <see cref="ServerActionPlayer"/>.
+        /// </summary>
+        public void NotifyActionCooldownStarted(ActionID actionID, float duration)
+        {
+            TargetActionCooldownStarted(actionID, duration);
+        }
+
+        [TargetRpc]
+        void TargetActionCooldownStarted(ActionID actionID, float duration)
+        {
+            ActionCooldownStarted?.Invoke(actionID, duration);
+        }
+
         /// <param name="data">Data about which action to play and its associated details. </param>
         [Command]
         public void CmdPlayAction(ActionRequestData data)

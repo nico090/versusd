@@ -296,8 +296,28 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #endif
             CharacterClass characterClass = GameDataSource.Instance.CharacterDataByType[m_CharLogic.CharacterType];
             Assert.IsNotNull(characterClass, $"No CharacterClass data for character type {m_CharLogic.CharacterType}");
-            return characterClass.Speed;
+            return characterClass.Speed * GetClassSpeedMultiplier(m_CharLogic.CharacterType);
         }
+
+        /// <summary>
+        /// Per-class movement tuning applied on top of the CharacterClass asset's Speed.
+        /// Lives in code rather than in the .asset because a value edited on disk can be
+        /// silently replaced by Unity's cached copy when the build is made.
+        /// </summary>
+        private static float GetClassSpeedMultiplier(CharacterTypeEnum characterType)
+        {
+            switch (characterType)
+            {
+                // The Archer out-ranges everyone; being just as fast as the melee classes on
+                // top of that left them with no way to close the distance.
+                case CharacterTypeEnum.Archer:
+                    return k_ArcherSpeedMultiplier;
+                default:
+                    return 1f;
+            }
+        }
+
+        private const float k_ArcherSpeedMultiplier = 0.75f;
 
         /// <summary>
         /// Determines the appropriate MovementStatus for the character. The

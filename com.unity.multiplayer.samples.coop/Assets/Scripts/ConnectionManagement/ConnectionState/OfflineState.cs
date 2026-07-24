@@ -51,5 +51,18 @@ namespace Unity.BossRoom.ConnectionManagement
             var connectionMethod = new ConnectionMethodIP(ipaddress, (ushort)port, m_ConnectionManager, m_ProfileManager, playerName);
             m_ConnectionManager.ChangeState(m_ConnectionManager.m_StartingHost.Configure(connectionMethod));
         }
+
+        public override void StartHostRelay(string playerName)
+        {
+            var connectionMethod = new ConnectionMethodRelay(string.Empty, m_ConnectionManager, m_ProfileManager, playerName);
+            m_ConnectionManager.ChangeState(m_ConnectionManager.m_StartingHost.Configure(connectionMethod));
+        }
+
+        public override void StartClientRelay(string playerName, string serverId, string joinToken = null, string sessionId = null)
+        {
+            var connectionMethod = new ConnectionMethodRelay(serverId, m_ConnectionManager, m_ProfileManager, playerName, joinToken, sessionId, m_ConnectionManager.MasterServerFacade);
+            m_ConnectionManager.m_ClientReconnecting.Configure(connectionMethod);
+            m_ConnectionManager.ChangeState(m_ConnectionManager.m_ClientConnecting.Configure(connectionMethod));
+        }
     }
 }

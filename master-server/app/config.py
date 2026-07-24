@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     # Seconds without a heartbeat before a *server* doc is considered dead (crash
     # recovery; longer than lobby TTL so a brief stall doesn't free a live port).
     server_ttl_seconds: int = 60
+    # Seconds a lobby may stay at zero players before it's pruned (even while the
+    # host still heartbeats). Reclaims abandoned/never-filled rooms and their
+    # dedicated containers. Much longer than lobby_ttl so a host waiting for the
+    # first joiner isn't killed.
+    empty_lobby_ttl_seconds: int = 300
     # Minutes a join_token stays valid after being issued.
     join_token_expire_minutes: int = 10
 

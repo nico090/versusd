@@ -43,6 +43,15 @@ class CreateDedicatedLobbyRequest(BaseModel):
     password: str | None = None
 
 
+class CreateRelayLobbyRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    # The LRM relay serverId the host obtained after connecting to the relay.
+    relay_server_id: str = Field(min_length=1, max_length=128)
+    max_players: int = 8
+    is_private: bool = False
+    password: str | None = None
+
+
 class LobbyResponse(BaseModel):
     session_id: str
     name: str
@@ -53,6 +62,8 @@ class LobbyResponse(BaseModel):
     current_players: int
     is_private: bool
     is_dedicated: bool = False
+    is_relay: bool = False
+    relay_server_id: str | None = None
 
 
 class LobbyListResponse(BaseModel):
@@ -71,6 +82,10 @@ class JoinResponse(BaseModel):
     host_ip: str
     host_port: int
     join_token: str
+    # For relay lobbies the client connects via this LRM serverId instead of
+    # host_ip/host_port (which are empty/0 for relay). Null for dedicated/P2P.
+    is_relay: bool = False
+    relay_server_id: str | None = None
 
 
 # ── Servers ─────────────────────────────────────────────────────────────────

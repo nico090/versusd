@@ -33,6 +33,41 @@ services:
     networks:
       - versused
 
+  # Self-hosted Light Reflective Mirror relay: ONE long-lived process that forwards
+  # packets for player-hosted (relay) lobbies, so hosts need no port-forwarding.
+  # Cheaper than dedicated containers (no per-match game sim on the VPS — just packet
+  # forwarding). This is a FORK of upstream LRM, vendored at ../relay-server (repo
+  # root) — it ports the relay's kcp2k to the modern cookie-based version that ships
+  # with the project's Mirror package (upstream's kcp2k has no security cookie and
+  # can't complete the handshake against this client), plus diagnostic logging on the
+  # "sent bad data" disconnect path. DO NOT re-clone upstream LRM to rebuild this
+  # image — that regresses both fixes. It is built straight from the vendored copy at
+  # ../relay-server (sibling of this master-server dir) via the build context below, so
+  # `docker compose up -d --build` rebuilds it in place — no separate `docker build` step.
+  # Open 7777/udp (transport) and 7776/udp (NAT punch) on the VPS firewall. The relay
+  # endpoint the client connects to (serverIP/serverPort) lives on the
+  # LightReflectiveMirrorTransport in Startup.unity; its authenticationKey MUST equal
+  # RELAY_AUTH_KEY below or every host/client is rejected by the relay.
+  relay:
+    build: ../relay-server
+    image: versused-relay:latest
+    ports:
+      - "7777:7777/udp"   # KCP transport (host<->relay<->clients)
+      - "7776:7776/udp"   # NAT punchthrough (direct-connect attempt before relaying)
+    environment:
+      # LRM reads config from env when NO_CONFIG=true (set in LRM's Dockerfile).
+      # We only override what differs from LRM's image defaults.
+      - AUTH_KEY=${RELAY_AUTH_KEY:?set RELAY_AUTH_KEY in .env}
+      - TRANSPORT_PORT=7777
+      - ENABLE_NATPUNCH_SERVER=true
+      - NAT_PUNCH_PORT=7776
+      # We use our own master server for the lobby list, so LRM's built-in
+      # server-list REST endpoint (8080) stays off.
+      - USE_ENDPOINT=false
+    restart: unless-stopped
+    networks:
+      - versused
+
   # Game servers are spawned on-demand by the master server.
   # No static game-server entries needed here.
   # Ports 9000-9999/udp must be open on the VPS firewall.

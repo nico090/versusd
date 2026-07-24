@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.BossRoom.Gameplay.Actions;
 using Unity.BossRoom.Gameplay.UserInput;
 using Unity.BossRoom.Gameplay.GameplayObjects;
 using Unity.BossRoom.Gameplay.GameplayObjects.Character;
@@ -127,6 +128,7 @@ namespace Unity.BossRoom.Gameplay.UI
 
             m_InputSender = inputSender;
             m_InputSender.action1ModifiedCallback += Action1ModifiedCallback;
+            m_InputSender.ActionCooldownStarted += OnActionCooldownStarted;
 
             Action action1 = null;
             if (m_InputSender.actionState1 != null)
@@ -167,9 +169,24 @@ namespace Unity.BossRoom.Gameplay.UI
             if (m_InputSender)
             {
                 m_InputSender.action1ModifiedCallback -= Action1ModifiedCallback;
+                m_InputSender.ActionCooldownStarted -= OnActionCooldownStarted;
             }
 
             m_InputSender = null;
+        }
+
+        // Finds whichever action-bar button (if any) is currently showing this actionID and
+        // starts its cooldown shadow animation. An action not shown on any button (e.g. an
+        // Emote) is simply ignored.
+        void OnActionCooldownStarted(ActionID actionID, float duration)
+        {
+            foreach (var buttonInfo in m_ButtonInfo.Values)
+            {
+                if (buttonInfo.CurAction != null && buttonInfo.CurAction.ActionID == actionID)
+                {
+                    buttonInfo.Button.StartCooldown(duration);
+                }
+            }
         }
 
         void Awake()

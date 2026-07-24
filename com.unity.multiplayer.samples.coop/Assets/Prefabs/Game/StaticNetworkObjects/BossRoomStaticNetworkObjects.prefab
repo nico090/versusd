@@ -682,7 +682,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4844841199312666291, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_ProximityDistance
-      value: 60
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 4844841199312666291, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_SpawnCapIncreasePerPlayer
@@ -690,7 +690,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4844841199312666291, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_SpawnedEntityDetectDistance
-      value: 60
+      value: 30
       objectReference: {fileID: 0}
     - target: {fileID: 6205854018081152875, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_Name
@@ -1631,7 +1631,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4844841199312666291, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_ProximityDistance
-      value: 60
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 4844841199312666291, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_SpawnCapIncreasePerPlayer
@@ -1639,7 +1639,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4844841199312666291, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_SpawnedEntityDetectDistance
-      value: 60
+      value: 30
       objectReference: {fileID: 0}
     - target: {fileID: 6205854018081152875, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_Name
@@ -1807,7 +1807,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4844841199312666291, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_ProximityDistance
-      value: 60
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 4844841199312666291, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_SpawnCapIncreasePerPlayer
@@ -1815,7 +1815,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4844841199312666291, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_SpawnedEntityDetectDistance
-      value: 60
+      value: 30
       objectReference: {fileID: 0}
     - target: {fileID: 6205854018081152875, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_Name
@@ -2597,7 +2597,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4844841199312666291, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_ProximityDistance
-      value: 60
+      value: 35
       objectReference: {fileID: 0}
     - target: {fileID: 4844841199312666291, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_SpawnCapIncreasePerPlayer
@@ -2605,7 +2605,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4844841199312666291, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_SpawnedEntityDetectDistance
-      value: 60
+      value: 30
       objectReference: {fileID: 0}
     - target: {fileID: 6205854018081152875, guid: a6647793a8bc7c846abba94be1d257e5, type: 3}
       propertyPath: m_Name

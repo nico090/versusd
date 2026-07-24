@@ -20,11 +20,22 @@ namespace Unity.BossRoom.MasterServer
         public LobbyResponse CurrentLobby { get; private set; }
         public bool LastErrorWasServerUnavailable { get; private set; }
 
+        /// <summary>Mirrors MasterServerConfig.enableDedicatedServers. When false the UI hides the
+        /// "Dedicated server" option and every room is created via the relay.</summary>
+        public bool EnableDedicatedServers { get; }
+
+        /// <summary>The configured master-server base URL. Exposed so other systems (e.g.
+        /// MirrorNetworkAuthenticator, which validates join tokens) can reuse the single
+        /// configured address instead of carrying their own copy that can silently drift.</summary>
+        public string BaseUrl { get; }
+
         public event Action<string> OnError;
 
         public MasterServerFacade(MasterServerConfig config)
         {
             m_Client = new MasterServerClient(config.baseUrl);
+            EnableDedicatedServers = config.enableDedicatedServers;
+            BaseUrl = config.baseUrl;
         }
 
         /// <summary>Set the dedicated-server shared secret used for privileged endpoints
@@ -123,6 +134,34 @@ namespace Unity.BossRoom.MasterServer
             catch (Exception e)
             {
                 Debug.LogError($"[MasterServer] Create lobby failed: {e.Message}");
+                OnError?.Invoke(e.Message);
+                return null;
+            }
+        }
+
+        /// <summary>Registers a relay-hosted lobby (player hosts, VPS relay forwards). The host must
+        /// already be connected to the LRM relay and have obtained its serverId. Starts the heartbeat
+        /// like a normal lobby. Returns null on failure (e.g. duplicate name).</summary>
+        public async Task<LobbyResponse> CreateRelayLobbyAsync(string name, string relayServerId, int maxPlayers = 8, bool isPrivate = false, string password = null)
+        {
+            try
+            {
+                var lobby = await m_Client.CreateRelayLobbyAsync(new CreateRelayLobbyRequest
+                {
+                    name = string.IsNullOrEmpty(name) ? "Room" : name,
+                    relay_server_id = relayServerId,
+                    max_players = maxPlayers,
+                    is_private = isPrivate,
+                    password = password,
+                });
+                CurrentLobby = lobby;
+                CurrentSessionId = lobby.session_id;
+                _ = HeartbeatLoopAsync(lobby.session_id);
+                return lobby;
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[MasterServer] Create relay lobby failed: {e.Message}");
                 OnError?.Invoke(e.Message);
                 return null;
             }

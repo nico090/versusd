@@ -32,6 +32,13 @@ namespace Unity.BossRoom.ConnectionManagement
 
         public virtual void StartHostIP(string playerName, string ipaddress, int port) { }
 
+        // Relay (Light Reflective Mirror): host runs on the player's machine, reached via the
+        // VPS relay by serverId. serverId is only known after StartHost, so the UI creates the
+        // lobby afterwards (see SessionUIMediator).
+        public virtual void StartHostRelay(string playerName) { }
+
+        public virtual void StartClientRelay(string playerName, string serverId, string joinToken = null, string sessionId = null) { }
+
         public virtual void StartHostSession(string playerName) { }
 
         public virtual void OnUserRequestedShutdown() { }

@@ -1,5 +1,4 @@
-using System.Net;
-using System.Net.Sockets;
+using System.Threading.Tasks;
 using TMPro;
 using Unity.BossRoom.ConnectionManagement;
 using Unity.BossRoom.MasterServer;
@@ -97,7 +96,7 @@ namespace Unity.BossRoom.Gameplay.UI
                 // Dedicated server allocated — join the lobby to get a token, then connect.
                 var join = await m_MasterServerFacade.JoinLobbyAsync(lobby.session_id);
                 if (join == null) return;
-                m_ConnectionManager.StartClientIp(m_MasterServerFacade.Username, join.host_ip, join.host_port, join.join_token, join.session_id);
+                await ConnectFromJoin(join);
                 return;
             }
 
@@ -109,22 +108,17 @@ namespace Unity.BossRoom.Gameplay.UI
                 return;
             }
 
-            // Fallback: host the room ourselves (P2P)
-            Debug.Log("[SessionUI] No dedicated servers available — falling back to P2P.");
+            // Fallback: host via the relay (player hosts, the VPS just forwards packets) instead
+            // of allocating a dedicated container.
+            Debug.Log("[SessionUI] No dedicated servers available — falling back to relay.");
             ShowFallbackNotice();
-            SetSpinner(true);
-            string localIp = GetLocalIpAddress();
-            const int port = 9998;
-            var p2pLobby = await m_MasterServerFacade.CreateLobbyAsync(name, localIp, port, 8, isPrivate, password);
-            SetSpinner(false);
-            if (p2pLobby == null) return;
-            m_ConnectionManager.StartHostIp(m_MasterServerFacade.Username, localIp, port);
+            CreateSessionRequest(name, isPrivate, password);
         }
 
         void ShowFallbackNotice()
         {
-            Debug.Log("[SessionUI] No dedicated servers available — falling back to P2P host.");
-            ShowToast("No dedicated servers available.\nCreating a P2P room instead.", 5f);
+            Debug.Log("[SessionUI] No dedicated servers available — falling back to relay host.");
+            ShowToast("No dedicated servers available.\nHosting via the relay instead.", 5f);
         }
 
         // ── Tab relabelling ───────────────────────────────────────────────────
@@ -189,7 +183,10 @@ namespace Unity.BossRoom.Gameplay.UI
                 m_ToastLabel.gameObject.transform.parent.gameObject.SetActive(false);
         }
 
-        /// <summary>Creates a P2P room hosted on the player's own machine (not visible in public search).</summary>
+        /// <summary>Creates a relay-hosted room: the player hosts on their own machine, but the
+        /// self-hosted LRM relay on the VPS forwards traffic so joiners need no port-forwarding.
+        /// The relay assigns the room's serverId only after StartHost, so we host first, wait for
+        /// the id, then register the lobby with it. Shown in public search unless private.</summary>
         public async void CreateSessionRequest(string sessionName, bool isPrivate, string password = null)
         {
             if (m_MasterServerFacade == null)
@@ -198,23 +195,98 @@ namespace Unity.BossRoom.Gameplay.UI
                 return;
             }
             SetSpinner(true);
+            string name = string.IsNullOrEmpty(sessionName) ? "Room" : sessionName;
 
-            string localIp = GetLocalIpAddress();
-            const int port = 9998;
-
-            var lobby = await m_MasterServerFacade.CreateLobbyAsync(
-                string.IsNullOrEmpty(sessionName) ? "Room" : sessionName,
-                localIp, port, 8, isPrivate, password);
-
-            SetSpinner(false);
-            if (lobby == null)
+            // The LRM transport connects to the relay on Awake; make sure it's up before hosting.
+            m_ConnectionManager.EnsureRelayConnected();
+            if (!await WaitForRelayReadyAsync(8f))
             {
-                ShowToast("Could not create room.\nThat name may already be taken — try another.", 5f);
+                SetSpinner(false);
+                ShowToast("Could not reach the relay server.\nCheck your connection and try again.", 5f);
                 return;
             }
 
-            m_ConnectionManager.StartHostIp(m_MasterServerFacade.Username, localIp, port);
+            // Host via relay. serverId is assigned asynchronously once the relay creates our room.
+            m_ConnectionManager.StartHostRelay(m_MasterServerFacade.Username);
+
+            string serverId = await WaitForRelayServerIdAsync(8f);
+            if (string.IsNullOrEmpty(serverId))
+            {
+                SetSpinner(false);
+                m_ConnectionManager.RequestShutdown();
+                ShowToast("The relay didn't assign a room id.\nPlease try again.", 5f);
+                return;
+            }
+
+            var lobby = await m_MasterServerFacade.CreateRelayLobbyAsync(name, serverId, 8, isPrivate, password);
+            SetSpinner(false);
+            if (lobby == null)
+            {
+                // Name clash or master unreachable — tear down the half-started host.
+                m_ConnectionManager.RequestShutdown();
+                ShowToast("Could not create room.\nThat name may already be taken — try another.", 5f);
+            }
         }
+
+        // Polls until the LRM transport is authenticated by the relay (or times out).
+        async Task<bool> WaitForRelayReadyAsync(float timeoutSeconds)
+        {
+            float deadline = Time.realtimeSinceStartup + timeoutSeconds;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                if (m_ConnectionManager.IsRelayReady) return true;
+                await Task.Delay(50);
+            }
+            return m_ConnectionManager.IsRelayReady;
+        }
+
+        // Polls until the relay assigns this host a room serverId (or times out).
+        async Task<string> WaitForRelayServerIdAsync(float timeoutSeconds)
+        {
+            float deadline = Time.realtimeSinceStartup + timeoutSeconds;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                string id = m_ConnectionManager.RelayServerId;
+                if (!string.IsNullOrEmpty(id)) return id;
+                await Task.Delay(50);
+            }
+            return m_ConnectionManager.RelayServerId;
+        }
+
+        // Connects a joiner using the right transport for the lobby type: relay lobbies use the
+        // LRM serverId, dedicated/IP lobbies use host_ip/host_port.
+        //
+        // Relay joins wait for IsRelayReady first (same as the host path in CreateSessionRequest)
+        // because LightReflectiveMirrorTransport.ClientConnect only checks Available() (raw KCP
+        // connect), not authentication. If StartClientRelay fires before the relay auth handshake
+        // (AuthenticationRequest/Response/Authenticated) finishes, the relay is still tracking this
+        // client as pending-authentication and silently drops the JoinServer opcode (HandleMessage
+        // ignores every opcode but AuthenticationResponse while pending) — the joiner then just sits
+        // connected-but-stuck until its own client-side timeout fires, which reads as an endless
+        // "retrying to join" loop that eventually fills the room with abandoned slots (see VersusD
+        // project memory "relay-lrm-migration").
+        async Task ConnectFromJoin(JoinResponse join)
+        {
+            if (join.is_relay)
+            {
+                m_ConnectionManager.EnsureRelayConnected();
+                if (!await WaitForRelayReadyAsync(8f))
+                {
+                    ShowToast("Could not reach the relay server.\nCheck your connection and try again.", 5f);
+                    return;
+                }
+                m_ConnectionManager.StartClientRelay(m_MasterServerFacade.Username, join.relay_server_id, join.join_token, join.session_id);
+            }
+            else
+            {
+                m_ConnectionManager.StartClientIp(m_MasterServerFacade.Username, join.host_ip, join.host_port, join.join_token, join.session_id);
+            }
+        }
+
+        /// <summary>Whether the dedicated-server option should be offered (mirrors
+        /// MasterServerConfig.enableDedicatedServers). Read by SessionCreationUI.</summary>
+        public bool DedicatedServersEnabled =>
+            m_MasterServerFacade != null && m_MasterServerFacade.EnableDedicatedServers;
 
         // Called by SessionJoiningUI after resolving the selected lobby + optional password.
         public async void JoinLobbyRequest(LobbyResponse lobby, string password)
@@ -231,7 +303,7 @@ namespace Unity.BossRoom.Gameplay.UI
             SetSpinner(false);
             if (join == null) return;
 
-            m_ConnectionManager.StartClientIp(m_MasterServerFacade.Username, join.host_ip, join.host_port, join.join_token, join.session_id);
+            await ConnectFromJoin(join);
         }
 
         // Direct join by session ID (typed into the join-code field).
@@ -249,7 +321,7 @@ namespace Unity.BossRoom.Gameplay.UI
             SetSpinner(false);
             if (join == null) return;
 
-            m_ConnectionManager.StartClientIp(m_MasterServerFacade.Username, join.host_ip, join.host_port, join.join_token, join.session_id);
+            await ConnectFromJoin(join);
         }
 
         public async void QuerySessionRequest(bool blockUI)
@@ -277,7 +349,7 @@ namespace Unity.BossRoom.Gameplay.UI
                     var join = await m_MasterServerFacade.JoinLobbyAsync(lobby.session_id);
                     SetSpinner(false);
                     if (join != null)
-                        m_ConnectionManager.StartClientIp(m_MasterServerFacade.Username, join.host_ip, join.host_port, join.join_token, join.session_id);
+                        await ConnectFromJoin(join);
                     return;
                 }
             }
@@ -289,22 +361,6 @@ namespace Unity.BossRoom.Gameplay.UI
         void SetSpinner(bool active)
         {
             if (m_LoadingSpinner) m_LoadingSpinner.SetActive(active);
-        }
-
-        // Uses a UDP socket trick to find the LAN IP that would route to the internet.
-        static string GetLocalIpAddress()
-        {
-            try
-            {
-                using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0);
-                socket.Connect("8.8.8.8", 65530);
-                var ep = socket.LocalEndPoint as IPEndPoint;
-                return ep?.Address.ToString() ?? "127.0.0.1";
-            }
-            catch
-            {
-                return "127.0.0.1";
-            }
         }
     }
 }

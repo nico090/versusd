@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.BossRoom.MasterServer;
 using Unity.BossRoom.Utils;
 using Mirror;
+using LightReflectiveMirror;
 using UnityEngine;
 using VContainer;
 
@@ -246,6 +247,48 @@ namespace Unity.BossRoom.ConnectionManagement
         public void StartHostIp(string playerName, string ipaddress, int port)
         {
             m_CurrentState.StartHostIP(playerName, ipaddress, port);
+        }
+
+        // ── Relay (Light Reflective Mirror) ───────────────────────────────────
+
+        public void StartHostRelay(string playerName)
+        {
+            m_CurrentState.StartHostRelay(playerName);
+        }
+
+        public void StartClientRelay(string playerName, string serverId, string joinToken = null, string sessionId = null)
+        {
+            m_CurrentState.StartClientRelay(playerName, serverId, joinToken, sessionId);
+        }
+
+        LightReflectiveMirrorTransport LrmTransport =>
+            Mirror.NetworkManager.singleton != null
+                ? Mirror.NetworkManager.singleton.GetComponent<LightReflectiveMirrorTransport>()
+                : null;
+
+        /// <summary>True once the LRM transport is connected to and authenticated by the relay,
+        /// i.e. it's safe to StartHost/StartClient via relay. False if there's no LRM transport.</summary>
+        public bool IsRelayReady
+        {
+            get { var t = LrmTransport; return t != null && t.IsAuthenticated(); }
+        }
+
+        /// <summary>The relay room id assigned to this host after StartHostRelay + the relay's
+        /// RoomCreated reply. Empty until then; poll it after hosting to register the lobby.</summary>
+        public string RelayServerId
+        {
+            get { var t = LrmTransport; return t != null ? t.serverId : string.Empty; }
+        }
+
+        /// <summary>Kick off (or ensure) the LRM transport's connection to the relay. Safe to call
+        /// repeatedly — LRM warns and no-ops if already connected.</summary>
+        public void EnsureRelayConnected()
+        {
+            var t = LrmTransport;
+            if (t != null && !t.Available())
+            {
+                t.ConnectToRelay();
+            }
         }
 
         public void RequestShutdown()

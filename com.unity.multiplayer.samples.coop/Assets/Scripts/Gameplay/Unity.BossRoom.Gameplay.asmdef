@@ -19,7 +19,8 @@
         "VContainer",
         "Unity.BossRoom.VisualEffects",
         "Unity.BossRoom.CameraUtils",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "Unity.Cinemachine"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

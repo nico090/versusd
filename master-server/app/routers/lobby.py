@@ -13,6 +13,7 @@ from ..ratelimit import lobby_rate_limit
 from ..schemas import (
     CreateDedicatedLobbyRequest,
     CreateLobbyRequest,
+    CreateRelayLobbyRequest,
     JoinLobbyRequest,
     JoinResponse,
     LobbyListResponse,
@@ -38,12 +39,34 @@ def _aware(dt: datetime) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
+def _free_backing_server(db: Database, doc: dict) -> None:
+    """Mark a lobby's dedicated game server as reusable (idempotent no-op for
+    relay/P2P lobbies, which have no server_id)."""
+    server_id = doc.get("server_id")
+    if server_id:
+        db.game_servers.update_one(
+            {"_id": server_id},
+            {"$set": {"status": "available", "session_id": None, "lobby_name": None}},
+        )
+
+
 def prune_stale_lobbies(db: Database) -> None:
     lobby_cutoff = utcnow() - timedelta(seconds=settings.lobby_ttl_seconds)
+    empty_cutoff = utcnow() - timedelta(seconds=settings.empty_lobby_ttl_seconds)
     for doc in db.lobbies.find():
-        if _aware(doc["last_heartbeat"]) < lobby_cutoff:
-            db.join_tokens.delete_many({"session_id": doc["_id"]})
-            db.lobbies.delete_one({"_id": doc["_id"]})
+        stale = _aware(doc["last_heartbeat"]) < lobby_cutoff
+        empty_since = doc.get("empty_since")
+        empty_expired = empty_since is not None and _aware(empty_since) < empty_cutoff
+        if not (stale or empty_expired):
+            continue
+        db.join_tokens.delete_many({"session_id": doc["_id"]})
+        # An empty-but-alive lobby's container is still heartbeating, so it's
+        # reusable → free it for the next allocation. A stale (no-heartbeat) lobby's
+        # container is presumed dead → leave the server doc for the server_ttl crash
+        # recovery below to delete, so we don't hand out a dead container.
+        if empty_expired and not stale:
+            _free_backing_server(db, doc)
+        db.lobbies.delete_one({"_id": doc["_id"]})
     # Crash recovery: drop server docs whose container died without a clean
     # shutdown, so their ports can be reused.
     server_cutoff = utcnow() - timedelta(seconds=settings.server_ttl_seconds)
@@ -76,6 +99,8 @@ def _to_response(lobby: Lobby) -> LobbyResponse:
         current_players=lobby.current_players,
         is_private=lobby.is_private,
         is_dedicated=lobby.is_dedicated,
+        is_relay=lobby.is_relay,
+        relay_server_id=lobby.relay_server_id,
     )
 
 
@@ -121,6 +146,49 @@ def create_lobby(
         current_players=1,
         is_private=body.is_private,
         is_dedicated=False,
+        password_hash=hash_password(body.password) if body.password else None,
+        last_heartbeat=utcnow(),
+    )
+    db.lobbies.insert_one(lobby.to_doc())
+    return _to_response(lobby)
+
+
+@router.post(
+    "/relay",
+    response_model=LobbyResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(lobby_rate_limit)],
+)
+def create_relay_lobby(
+    body: CreateRelayLobbyRequest,
+    db: Database = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Register a player-hosted lobby that routes through the self-hosted LRM relay.
+    The host already connected to the relay and obtained a serverId; we just record
+    it so joiners can reach the host by serverId (no port-forwarding, no container)."""
+    if body.is_private and not body.password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Private lobbies require a password",
+        )
+
+    prune_stale_lobbies(db)
+    _assert_name_available(db, body.name)
+
+    lobby = Lobby(
+        session_id=str(uuid.uuid4()),
+        name=body.name,
+        host_player_id=user.player_id,
+        # Unused for relay lobbies — the relay endpoint is a client-side constant.
+        host_ip="",
+        host_port=0,
+        max_players=body.max_players,
+        current_players=1,
+        is_private=body.is_private,
+        is_dedicated=False,
+        is_relay=True,
+        relay_server_id=body.relay_server_id,
         password_hash=hash_password(body.password) if body.password else None,
         last_heartbeat=utcnow(),
     )
@@ -232,6 +300,9 @@ async def create_dedicated_lobby(
         server_id=server.server_id,
         password_hash=hash_password(body.password) if body.password else None,
         last_heartbeat=utcnow(),
+        # Starts empty (0 players) until the host client joins; the empty-lobby TTL
+        # reclaims it (and frees the container) if that join never happens.
+        empty_since=utcnow(),
     )
     db.lobbies.insert_one(lobby.to_doc())
 
@@ -281,7 +352,11 @@ def join_lobby(
             status_code=status.HTTP_409_CONFLICT, detail="Lobby is full"
         )
 
-    db.lobbies.update_one({"_id": session_id}, {"$inc": {"current_players": 1}})
+    # A successful join means the lobby is no longer empty → clear the empty timer.
+    db.lobbies.update_one(
+        {"_id": session_id},
+        {"$inc": {"current_players": 1}, "$set": {"empty_since": None}},
+    )
 
     token = JoinToken(
         token=str(uuid.uuid4()),
@@ -296,6 +371,8 @@ def join_lobby(
         host_ip=lobby.host_ip,
         host_port=lobby.host_port,
         join_token=token.token,
+        is_relay=lobby.is_relay,
+        relay_server_id=lobby.relay_server_id,
     )
 
 
@@ -322,8 +399,13 @@ def leave_lobby(
         db.lobbies.delete_one({"_id": session_id})
     else:
         new_count = max(0, lobby.current_players - 1)
+        # Start the empty timer when the last player leaves; clear it otherwise.
         db.lobbies.update_one(
-            {"_id": session_id}, {"$set": {"current_players": new_count}}
+            {"_id": session_id},
+            {"$set": {
+                "current_players": new_count,
+                "empty_since": utcnow() if new_count == 0 else None,
+            }},
         )
 
 

@@ -63,9 +63,28 @@ namespace Unity.BossRoom.Mirror
             // the master server, so it must require a validated join token.
             m_RequireToken = Application.isBatchMode;
 
+            // Resolve the master-server address, most authoritative source first:
+            //   1. MASTER_SERVER_URL env var — set on the dedicated-server container.
+            //   2. MasterServerConfig.baseUrl (via the facade) — the single address the rest
+            //      of the game already uses for lobbies. A player-hosted (relay/P2P) host has
+            //      no env var, so without this it silently fell back to the serialized default
+            //      below. That default was "http://localhost:8000", i.e. the host's OWN machine,
+            //      where nothing listens: every join-token validation failed with a connection
+            //      error and the host rejected every joiner (see VersusD project memory
+            //      "relay-lrm-migration"). Reading the config keeps the two in sync by
+            //      construction instead of relying on someone updating both by hand.
+            //   3. The serialized inspector field — last-resort default.
             var envUrl = Environment.GetEnvironmentVariable("MASTER_SERVER_URL");
             if (!string.IsNullOrEmpty(envUrl))
+            {
                 masterServerUrl = envUrl;
+            }
+            else
+            {
+                var configuredUrl = FindObjectOfType<ConnectionManager>()?.MasterServerFacade?.BaseUrl;
+                if (!string.IsNullOrEmpty(configuredUrl))
+                    masterServerUrl = configuredUrl;
+            }
 
             NetworkServer.RegisterHandler<AuthRequestMessage>(OnAuthRequestMessage, false);
         }
@@ -129,23 +148,38 @@ namespace Unity.BossRoom.Mirror
             req.timeout = k_RequestTimeoutSeconds;
             yield return req.SendWebRequest();
 
-            bool ok = req.result == UnityWebRequest.Result.Success;
-            if (ok)
+            if (req.result != UnityWebRequest.Result.Success)
             {
-                var resp = JsonUtility.FromJson<ValidateJoinTokenResponse>(req.downloadHandler.text);
-                ok = resp != null && resp.valid;
-                if (!ok)
-                    Debug.LogWarning($"[Auth] Token invalid for {msg.playerId}: {req.downloadHandler.text}");
-            }
-            else
-            {
-                Debug.LogWarning($"[Auth] Token validation request failed: {req.error}");
+                // Couldn't reach the master server at all — this says nothing about whether the
+                // token is genuine. A dedicated server must still refuse (it's only reachable
+                // through the master server, so it can't vouch for anyone on its own). A
+                // player-hosted relay/P2P host already accepts tokenless LAN joins, so failing
+                // the match over a transient master-server hiccup is strictly worse than letting
+                // the player in — and when this misfired it rejected EVERY joiner in a loop.
+                Debug.LogWarning($"[Auth] Token validation request to {masterServerUrl} failed: {req.error}");
+                if (m_RequireToken)
+                {
+                    RejectConnection(conn, "Could not verify your join token with the master server.");
+                }
+                else
+                {
+                    Debug.LogWarning("[Auth] Player-hosted session: admitting player despite the failed check.");
+                    AcceptConnection(conn, msg.playerId, msg.playerName, msg.isDebug, msg.joinToken, msg.sessionId);
+                }
+                yield break;
             }
 
-            if (ok)
+            // The master server answered: trust its verdict either way.
+            var resp = JsonUtility.FromJson<ValidateJoinTokenResponse>(req.downloadHandler.text);
+            if (resp != null && resp.valid)
+            {
                 AcceptConnection(conn, msg.playerId, msg.playerName, msg.isDebug, msg.joinToken, msg.sessionId);
+            }
             else
+            {
+                Debug.LogWarning($"[Auth] Token invalid for {msg.playerId}: {req.downloadHandler.text}");
                 RejectConnection(conn, "Invalid or expired join token.");
+            }
         }
 
         void AcceptConnection(NetworkConnectionToClient conn, string playerId, string playerName, bool isDebug,

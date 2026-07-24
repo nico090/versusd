@@ -170,6 +170,17 @@ namespace Unity.BossRoom.Gameplay.Actions
             Assert.IsTrue(Config.Spawns.Length == 2, $"Found {Config.Spawns.Length} spawns for action {name}. Should be exactly 2: a charge-up particle and a fully-charged particle");
 
             base.OnStartClient(clientCharacter);
+
+            // Base OnStartClient deliberately skips charged actions when it plays the animation
+            // locally (the dedicated-server NetworkAnimator workaround), because firing only the
+            // start trigger would stick the pose. We can do it here safely because we also raise
+            // the end trigger ourselves in OnStoppedChargingUpClient.
+            if (!string.IsNullOrEmpty(Config.Anim) && clientCharacter.OurAnimator)
+            {
+                clientCharacter.OurAnimator.ResetTrigger(Config.Anim2);
+                clientCharacter.OurAnimator.SetTrigger(Config.Anim);
+            }
+
             m_ChargeGraphics = InstantiateSpecialFXGraphic(Config.Spawns[0], clientCharacter.transform, true);
             return true;
         }

@@ -3,6 +3,7 @@ using Unity.BossRoom.MasterServer;
 using Unity.BossRoom.Utils;
 using Mirror;
 using kcp2k;
+using LightReflectiveMirror;
 using UnityEngine;
 
 namespace Unity.BossRoom.ConnectionManagement
@@ -90,6 +91,10 @@ namespace Unity.BossRoom.ConnectionManagement
         {
             SetConnectionPayload(GetPlayerId(), m_PlayerName, m_JoinToken, m_SessionId);
 
+            // IP/dedicated is direct KCP. Force KCP active in case a previous session used the
+            // relay transport (Transport.active is process-global).
+            RelayTransport.ActivateKcp();
+
             // Configure the KcpTransport (or whichever transport is active) with IP + port
             var transport = Mirror.NetworkManager.singleton.GetComponent<KcpTransport>();
             if (transport != null)
@@ -133,6 +138,8 @@ namespace Unity.BossRoom.ConnectionManagement
         {
             SetConnectionPayload(GetPlayerId(), m_PlayerName);
 
+            RelayTransport.ActivateKcp();
+
             var transport = Mirror.NetworkManager.singleton.GetComponent<KcpTransport>();
             if (transport != null)
             {
@@ -140,6 +147,116 @@ namespace Unity.BossRoom.ConnectionManagement
             }
 
             Mirror.NetworkManager.singleton.networkAddress = m_Ipaddress;
+        }
+    }
+
+    /// <summary>
+    /// Switches Mirror's active transport between the direct KCP transport (IP/dedicated/LAN)
+    /// and the Light Reflective Mirror transport (relay), both of which live as components on
+    /// the NetworkManager GameObject. Mirror keys off the single process-global Transport.active
+    /// (and NetworkManager.transport), so we must set both before StartHost/StartClient.
+    /// </summary>
+    static class RelayTransport
+    {
+        public static LightReflectiveMirrorTransport Lrm =>
+            Mirror.NetworkManager.singleton != null
+                ? Mirror.NetworkManager.singleton.GetComponent<LightReflectiveMirrorTransport>()
+                : null;
+
+        public static void ActivateRelay()
+        {
+            var lrm = Lrm;
+            if (lrm == null)
+            {
+                Debug.LogError("[Relay] No LightReflectiveMirrorTransport on the NetworkManager — add it (with clientToServerTransport = KcpTransport) to host/join via relay.");
+                return;
+            }
+            Transport.active = lrm;
+            Mirror.NetworkManager.singleton.transport = lrm;
+        }
+
+        public static void ActivateKcp()
+        {
+            var kcp = Mirror.NetworkManager.singleton != null
+                ? Mirror.NetworkManager.singleton.GetComponent<KcpTransport>()
+                : null;
+            if (kcp == null)
+            {
+                return;
+            }
+
+            // If we were connected to the relay earlier this session (hosted/joined a relay game,
+            // then came back to the menu), drop that uplink before going direct. The LRM transport
+            // is only pumped while it is Transport.active, and it shares this very KcpTransport as
+            // its relay socket — so once we switch away, an un-left relay connection just goes
+            // silent and the relay evicts it after 10s (the "not receiving any message for 10000ms"
+            // timeouts flooding the relay log). No-ops if we were never on the relay.
+            Lrm?.DisconnectFromRelay();
+
+            Transport.active = kcp;
+            Mirror.NetworkManager.singleton.transport = kcp;
+        }
+    }
+
+    /// <summary>
+    /// Relay connection: the player hosts, but all traffic is forwarded by the self-hosted LRM
+    /// relay on the VPS (no port-forwarding needed). The LRM transport connects to the relay
+    /// on demand (ConnectionManager.EnsureRelayConnected, driven by the session UI before
+    /// host/join — connectOnAwake is off so direct-IP/dedicated builds never dial the relay).
+    /// A host obtains a serverId (LightReflectiveMirrorTransport.serverId) once its room is
+    /// created, and clients join by setting networkAddress = that serverId.
+    /// </summary>
+    class ConnectionMethodRelay : ConnectionMethodBase
+    {
+        // Client: the relay room (serverId) to join. Empty for the host (its id is assigned by
+        // the relay after StartHost).
+        readonly string m_ServerId;
+        // Not readonly: refreshed on reconnect (join token is single-use).
+        string m_JoinToken;
+        readonly string m_SessionId;
+        readonly MasterServerFacade m_MasterServerFacade;
+
+        public ConnectionMethodRelay(string serverId, ConnectionManager connectionManager, ProfileManager profileManager, string playerName, string joinToken = "", string sessionId = "", MasterServerFacade masterServerFacade = null)
+            : base(connectionManager, profileManager, playerName)
+        {
+            m_ServerId = serverId ?? string.Empty;
+            m_JoinToken = joinToken ?? string.Empty;
+            m_SessionId = sessionId ?? string.Empty;
+            m_MasterServerFacade = masterServerFacade;
+        }
+
+        public override void SetupHostConnection()
+        {
+            SetConnectionPayload(GetPlayerId(), m_PlayerName);
+            RelayTransport.ActivateRelay();
+        }
+
+        public override void SetupClientConnection()
+        {
+            SetConnectionPayload(GetPlayerId(), m_PlayerName, m_JoinToken, m_SessionId);
+            RelayTransport.ActivateRelay();
+            // LRM interprets networkAddress as the target room's serverId (ClientConnect(address)).
+            Mirror.NetworkManager.singleton.networkAddress = m_ServerId;
+        }
+
+        public override async Task<(bool success, bool shouldTryAgain)> SetupClientReconnectionAsync()
+        {
+            // No master-server session (shouldn't happen for relay joins) → just retry the serverId.
+            if (string.IsNullOrEmpty(m_SessionId) || m_MasterServerFacade == null)
+            {
+                return (true, true);
+            }
+
+            // The single-use join token was burned on first seat; re-join the lobby for a fresh
+            // one before the next StartClient. The serverId stays the same (host unchanged).
+            var join = await m_MasterServerFacade.JoinLobbyAsync(m_SessionId);
+            if (join == null || string.IsNullOrEmpty(join.join_token))
+            {
+                return (false, true);
+            }
+
+            m_JoinToken = join.join_token;
+            return (true, true);
         }
     }
 }

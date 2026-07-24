@@ -30,6 +30,10 @@ namespace Unity.BossRoom.MasterServer
         public int current_players;
         public bool is_private;
         public bool is_dedicated;
+        // Relay-hosted lobby: the host's PC runs the game, reached via the LRM relay
+        // serverId below instead of host_ip/host_port.
+        public bool is_relay;
+        public string relay_server_id;
     }
 
     [Serializable]
@@ -45,6 +49,9 @@ namespace Unity.BossRoom.MasterServer
         public string host_ip;
         public int host_port;
         public string join_token;
+        // For relay lobbies connect via this LRM serverId instead of host_ip/host_port.
+        public bool is_relay;
+        public string relay_server_id;
     }
 
     [Serializable]
@@ -86,6 +93,17 @@ namespace Unity.BossRoom.MasterServer
     public class CreateDedicatedLobbyRequest
     {
         public string name;
+        public int max_players = 8;
+        public bool is_private;
+        public string password;
+    }
+
+    [Serializable]
+    public class CreateRelayLobbyRequest
+    {
+        public string name;
+        // The LRM relay serverId the host obtained after connecting to the relay.
+        public string relay_server_id;
         public int max_players = 8;
         public bool is_private;
         public string password;

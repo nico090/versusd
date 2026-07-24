@@ -5,6 +5,7 @@
         "Mirror",
         "Mirror.Transports",
         "kcp2k",
+        "LRM",
         "Unity.Multiplayer.Samples.Utilities",
         "Unity.BossRoom.Infrastructure",
         "Unity.BossRoom.Utils",

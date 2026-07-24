@@ -454,9 +454,9 @@ MonoBehaviour:
   m_PlayerProximityValidationTimestep: 2
   m_SpawnedEntityDetectDistance: 30
   m_NumberOfWaves: 2
-  m_SpawnsPerWave: 2
+  m_SpawnsPerWave: 1
   m_TimeBetweenSpawns: 0.5
-  m_TimeBetweenWaves: 5
+  m_TimeBetweenWaves: 8
   m_RestartDelay: 10
   m_ProximityDistance: 30
   m_DetectStealthyPlayers: 1

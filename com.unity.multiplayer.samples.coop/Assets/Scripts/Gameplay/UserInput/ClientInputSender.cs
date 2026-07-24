@@ -72,13 +72,28 @@ namespace Unity.BossRoom.Gameplay.UserInput
         int m_ActionRequestCount;
 
         BaseActionInput m_CurrentSkillInput;
+        // When the current charge-up style skill input was created, and how long we let it live.
+        // A BaseActionInput blocks all clicking (see Update) until its key/button is released, so
+        // a swallowed release event — e.g. the action-bar button turning non-interactable while
+        // held — used to leave the player able to run around but unable to attack ever again.
+        // This timeout guarantees it always ends.
+        float m_SkillInputStartTime;
+        const float k_MaxSkillInputHoldSeconds = 8f;
         // true while the last frame sent a directional (WASD/stick) move, so we know
         // to send a single "stop" when the stick is released.
         bool m_WasDirectMoving;
+        // The server drops movement commands it can't apply right now (e.g. while a knockback
+        // or charge is in progress), so a single "stop" packet sent at that moment was lost and
+        // the character kept running forever. Resend the stop a few times to cover that window.
+        int m_PendingStopSends;
+        const int k_StopResendCount = 4;
         Camera m_MainCamera;
 
         // ── Continuous auto-target (aim-based "line of fire" lock) ───────────────
-        const float k_AutoTargetRange = 8f;        // meters
+        // Range of the soft-lock. Raised from the original 8m: in PvP the fight happens at
+        // ranged-weapon distances, and an 8m lock meant you simply couldn't auto-aim at the
+        // player you were shooting at.
+        const float k_AutoTargetRange = 14f;       // meters
         // Half-cone around the aim direction. Widened from the original 45° so the soft-lock
         // can grab foes that are off to the side / not directly faced, which combats the
         // "combat feels stiff" complaint. Manual left-click selection (see m_ManualTargetUntil)
@@ -90,6 +105,18 @@ namespace Unity.BossRoom.Gameplay.UserInput
         // an enemy they aren't facing and keep firing at it.
         const float k_ManualTargetHoldSeconds = 3f;
         float m_ManualTargetUntil;
+        // Unconditional part of the hold: right after the click the server hasn't confirmed the
+        // new TargetId yet, so we can't validate the pick. For this long we honour the hold no
+        // matter what; after it, the hold only survives while the picked foe is still a valid,
+        // in-range target (see UpdateAutoTarget). Without this the lock used to stick for the
+        // full 3s onto a foe that had already died or run away.
+        const float k_ManualTargetGraceSeconds = 0.6f;
+        float m_ManualTargetGraceUntil;
+        // In PvP, other players are the point of the fight — but the map is full of imps that
+        // would otherwise win the "closest to my aim" contest and steal the lock. This many
+        // "virtual degrees" of bonus are subtracted from a player candidate's score so a foe
+        // player beats a nearby NPC unless the NPC is much better aligned.
+        const float k_PvPPlayerPriorityBonus = 40f;
         // How strongly alignment with the aim beats proximity when scoring candidates.
         // Higher = the foe most directly in the line of fire wins even if a closer foe
         // sits off to the side. Score is degrees-off-aim * weight + distance-in-metres.
@@ -98,7 +125,10 @@ namespace Unity.BossRoom.Gameplay.UserInput
         // geometry instead of the floor under the characters' feet.
         const float k_AutoTargetEyeHeight = 1f;
         float m_LastAutoTarget;
-        readonly Collider[] m_AutoTargetHits = new Collider[16];
+        // Every character contributes several colliders, so 16 overflowed easily in a crowd
+        // (and an overflow silently drops candidates — including the player you're aiming at).
+        readonly Collider[] m_AutoTargetHits = new Collider[32];
+        readonly RaycastHit[] m_LineOfFireHits = new RaycastHit[8];
         LayerMask m_AutoTargetMask;
         // Geometry that blocks line of fire. Mirrors PhysicsProjectile's blocker mask so
         // "if a projectile would hit a wall, the auto-target won't lock through it".
@@ -117,6 +147,10 @@ namespace Unity.BossRoom.Gameplay.UserInput
         float m_LastMovementInputTime;
 
         public event Action<Vector3> ClientMoveEvent;
+
+        // Relays ServerCharacter.ActionCooldownStarted so UI (HeroActionBar) doesn't need to
+        // know about ServerCharacter directly — same pattern as action1ModifiedCallback.
+        public event Action<ActionID, float> ActionCooldownStarted;
 
         CharacterClass CharacterClass => m_ServerCharacter.CharacterClass;
 
@@ -144,6 +178,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
             m_ServerCharacter.TargetIdChanged += OnTargetChanged;
             m_ServerCharacter.HeldNetworkObjectChanged += OnHeldNetworkObjectChanged;
+            m_ServerCharacter.ActionCooldownStarted += OnActionCooldownStarted;
 
             if (CharacterClass.Skill1 &&
                 GameDataSource.Instance.TryGetActionPrototypeByID(CharacterClass.Skill1.ActionID, out var action1))
@@ -195,6 +230,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             {
                 m_ServerCharacter.TargetIdChanged -= OnTargetChanged;
                 m_ServerCharacter.HeldNetworkObjectChanged -= OnHeldNetworkObjectChanged;
+                m_ServerCharacter.ActionCooldownStarted -= OnActionCooldownStarted;
             }
 
             if (m_TargetServerCharacter)
@@ -228,6 +264,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
         void OnHeldNetworkObjectChanged(ulong previousValue, ulong newValue) => UpdateAction1();
 
+        void OnActionCooldownStarted(ActionID actionID, float duration) => ActionCooldownStarted?.Invoke(actionID, duration);
+
         void OnTargetLifeStateChanged(LifeState previousValue, LifeState newValue) => UpdateAction1();
 
         void FinishSkill() => m_CurrentSkillInput = null;
@@ -255,6 +293,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         var skillPlayer = Instantiate(actionPrototype.Config.ActionInput);
                         skillPlayer.Initiate(m_ServerCharacter, m_PhysicsWrapper.Transform.position, actionPrototype.ActionID, SendInput, FinishSkill);
                         m_CurrentSkillInput = skillPlayer;
+                        m_SkillInputStartTime = Time.time;
                     }
                     else
                     {
@@ -274,6 +313,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             moveInput = Vector2.ClampMagnitude(moveInput + MobileMovementJoystick.MovementInput, 1f);
             if (moveInput.sqrMagnitude > 0.01f)
             {
+                m_PendingStopSends = 0;
                 if ((Time.time - m_LastSentMove) > k_MoveSendRateSeconds)
                 {
                     m_LastSentMove = Time.time;
@@ -283,8 +323,16 @@ namespace Unity.BossRoom.Gameplay.UserInput
             }
             else if (m_WasDirectMoving)
             {
-                // stick/keys released — tell the server to stop once
+                // stick/keys released — tell the server to stop, and queue a few repeats in
+                // case the server was in a state where it had to ignore this one.
                 m_WasDirectMoving = false;
+                m_PendingStopSends = k_StopResendCount;
+                m_ServerCharacter.CmdSetMovementDirection(Vector3.zero);
+            }
+            else if (m_PendingStopSends > 0 && (Time.time - m_LastSentMove) > k_MoveSendRateSeconds)
+            {
+                m_LastSentMove = Time.time;
+                m_PendingStopSends--;
                 m_ServerCharacter.CmdSetMovementDirection(Vector3.zero);
             }
         }
@@ -398,6 +446,15 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     if (TryGetAimAssistTarget(out var assistNetId))
                         targetNetId = assistNetId;
                 }
+                else if ((logic == ActionLogic.RangedFXTargeted || logic == ActionLogic.LaunchProjectile)
+                         && triggerStyle == SkillTriggerStyle.MouseClick)
+                {
+                    // Ranged skillshots (Mage bolt, Archer arrow): if the click didn't land on a
+                    // foe, aim at the cursor point (handled by PerformSkill's no-target branch)
+                    // instead of snapping to the soft-locked auto-target off to the side. The shot
+                    // always flies toward the mouse, independent of where the character is facing.
+                    // Leaving targetNetId null makes this method return false so that fallback runs.
+                }
                 else
                 {
                     // Mouse, or non-offensive skills (revive/pickup): use the active target.
@@ -500,6 +557,16 @@ namespace Unity.BossRoom.Gameplay.UserInput
             UpdateAimMode();
             UpdateAutoTarget();
 
+            // Safety net: never let a charge-up input (Tank's Shield Aura, Archer's charged shot)
+            // hold the input system hostage. If its release never arrived, end it ourselves —
+            // otherwise the hero can still run but every attack click is swallowed.
+            if (m_CurrentSkillInput != null && (Time.time - m_SkillInputStartTime) > k_MaxSkillInputHoldSeconds)
+            {
+                var stuckInput = m_CurrentSkillInput;
+                m_CurrentSkillInput = null;
+                stuckInput.OnReleaseKey();
+            }
+
             if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
             {
                 // Right click: cast the hero's primary power (Skill1).
@@ -509,11 +576,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 // Left click: only selects the character to attack. Click-to-move was removed
                 // on purpose — movement is WASD / stick / on-screen joystick — so aiming and
                 // firing no longer fight with a walk-to-cursor command. On touch we ignore the
-                // press while the movement joystick is engaged, so starting to walk doesn't also
-                // select a random target.
-                if (m_TargetAction.action.WasPressedThisFrame() && !MobileMovementJoystick.IsActive)
+                // press while the movement joystick or the zoom bar is engaged, so starting to
+                // walk or to zoom doesn't also select a random target.
+                if (m_TargetAction.action.WasPressedThisFrame() && !MobileMovementJoystick.IsActive && !MobileZoomBar.IsActive)
                 {
                     m_ManualTargetUntil = Time.time + k_ManualTargetHoldSeconds;
+                    m_ManualTargetGraceUntil = Time.time + k_ManualTargetGraceSeconds;
                     RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype.ActionID, SkillTriggerStyle.MouseClick);
                 }
             }
@@ -611,17 +679,25 @@ namespace Unity.BossRoom.Gameplay.UserInput
             if (Time.time - m_LastAutoTarget < k_AutoTargetInterval) return;
             m_LastAutoTarget = Time.time;
 
-            // Respect a recent manual pick: keep the player's chosen foe as long as it's still
-            // alive, so the soft-lock doesn't yank the target back to whatever's in front.
-            if (Time.time < m_ManualTargetUntil)
+            // Respect a recent manual pick, but only while it's still worth respecting: past the
+            // short grace window the hold is dropped as soon as the picked foe is dead, gone or
+            // out of range, so the player isn't locked onto nothing for the rest of the 3s.
+            if (Time.time < m_ManualTargetUntil && Time.time >= m_ManualTargetGraceUntil
+                && !IsManualTargetStillValid())
             {
-                var manual = NetworkIdentityUtils.FindByNetId((uint)m_ServerCharacter.TargetId);
-                if (manual != null && manual.TryGetComponent<ServerCharacter>(out var manualChar)
-                    && manualChar.LifeState == LifeState.Alive)
-                {
-                    return;
-                }
+                m_ManualTargetUntil = 0f;
             }
+
+            // We used to also check that
+            // m_ServerCharacter.TargetId already matched the manual pick before honoring the
+            // hold — but TargetId is a server-authoritative SyncVar that only updates after a
+            // full CmdPlayAction round-trip. On localhost that round-trip is ~0ms so the race
+            // never showed up, but against a real dedicated server (VPS ping) there's a window
+            // right after the click where TargetId still holds the *previous* value, so that
+            // check failed and auto-target immediately stomped the manual pick before the
+            // server's confirmation ever arrived. Hence the grace window above: we trust the
+            // hold blindly at first, and only start validating once the server has answered.
+            if (Time.time < m_ManualTargetUntil) return;
 
             Vector3 myPos = m_PhysicsWrapper.Transform.position;
             Vector3 aimDir = GetAimDirection();
@@ -640,6 +716,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 if (candidate.LifeState != LifeState.Alive) continue;
                 // Enemies: NPCs are always hostile; other players only in PvP mode.
                 if (!candidate.IsNpc && !GameDataSource.IsPvPMode) continue;
+                if (candidate.physicsWrapper == null) continue;
 
                 Vector3 foePos = candidate.physicsWrapper.Transform.position;
                 Vector3 toFoe = foePos - myPos;
@@ -651,14 +728,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 if (angle > k_AutoTargetMaxAngle) continue;
 
                 // Line of fire: skip foes behind a wall so we never lock through cover.
-                Vector3 eye = myPos + Vector3.up * k_AutoTargetEyeHeight;
-                Vector3 foeEye = foePos + Vector3.up * k_AutoTargetEyeHeight;
-                if (Physics.Linecast(eye, foeEye, m_LineOfFireMask, QueryTriggerInteraction.Ignore))
-                    continue;
+                if (!HasLineOfFire(myPos, foePos)) continue;
 
                 // Prefer the foe most directly in the line of fire; distance is the
-                // tie-breaker (closer wins) rather than the dominant term.
+                // tie-breaker (closer wins) rather than the dominant term. In PvP a foe
+                // player outranks the imps standing around them.
                 float score = angle * k_AutoTargetAngleWeight + dist;
+                if (!candidate.IsNpc) score -= k_PvPPlayerPriorityBonus;
                 if (score < bestScore)
                 {
                     bestScore = score;
@@ -706,7 +782,9 @@ namespace Unity.BossRoom.Gameplay.UserInput
             int numHits = Physics.OverlapSphereNonAlloc(myPos, k_AutoTargetRange, m_AutoTargetHits, m_AutoTargetMask);
 
             ServerCharacter best = null;
-            float bestAngle = k_AimAssistMaxAngle;   // only accept foes inside this angle
+            // Scored like the soft-lock: raw angle, minus a bonus for foe players so they beat
+            // the imps milling around them. The cone test still uses the raw angle.
+            float bestScore = k_AimAssistMaxAngle;
             for (int i = 0; i < numHits; i++)
             {
                 var candidate = m_AutoTargetHits[i].GetComponentInParent<ServerCharacter>();
@@ -714,6 +792,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 if ((ulong)(uint)candidate.netId == myNetId) continue;
                 if (candidate.LifeState != LifeState.Alive) continue;
                 if (!candidate.IsNpc && !GameDataSource.IsPvPMode) continue;
+                if (candidate.physicsWrapper == null) continue;
 
                 Vector3 foePos = candidate.physicsWrapper.Transform.position;
                 Vector3 toFoe = foePos - myPos;
@@ -722,21 +801,65 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 if (dist < 0.01f) continue;
 
                 float angle = Vector3.Angle(aimDir, toFoe / dist);
-                if (angle > bestAngle) continue;   // outside the cone, or worse than current best
+                if (angle > k_AimAssistMaxAngle) continue;   // outside the cone
+
+                float score = candidate.IsNpc ? angle : angle - k_PvPPlayerPriorityBonus;
+                if (score > bestScore) continue;             // worse than the current best
 
                 // Don't snap through walls.
-                Vector3 eye = myPos + Vector3.up * k_AutoTargetEyeHeight;
-                Vector3 foeEye = foePos + Vector3.up * k_AutoTargetEyeHeight;
-                if (Physics.Linecast(eye, foeEye, m_LineOfFireMask, QueryTriggerInteraction.Ignore))
-                    continue;
+                if (!HasLineOfFire(myPos, foePos)) continue;
 
-                bestAngle = angle;   // prefer the foe most directly in the line of fire
+                bestScore = score;   // prefer the foe most directly in the line of fire
                 best = candidate;
             }
 
             if (best == null) return false;
             foe = best.netIdentity;
             return true;
+        }
+
+        /// <summary>
+        /// True if nothing solid stands between us and a foe at <paramref name="foePos"/>.
+        /// Characters never count as cover: the old version used a plain Linecast, which ends
+        /// *inside* the target's own body, so any collider of theirs (or of ours at the start
+        /// point) that happened to sit on a blocking layer reported "behind a wall" and the
+        /// foe could never be locked — the main reason auto-aim onto other players failed.
+        /// </summary>
+        bool HasLineOfFire(Vector3 myPos, Vector3 foePos)
+        {
+            Vector3 eye = myPos + Vector3.up * k_AutoTargetEyeHeight;
+            Vector3 foeEye = foePos + Vector3.up * k_AutoTargetEyeHeight;
+            Vector3 delta = foeEye - eye;
+            float dist = delta.magnitude;
+            if (dist < 0.01f) return true;
+
+            int numHits = Physics.RaycastNonAlloc(new Ray(eye, delta / dist), m_LineOfFireHits, dist,
+                m_LineOfFireMask, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < numHits; i++)
+            {
+                // A body (ours, the target's, or a bystander's) is not cover.
+                if (m_LineOfFireHits[i].transform.GetComponentInParent<ServerCharacter>() != null) continue;
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// True while a hand-picked target is still worth keeping the auto-target off:
+        /// it exists, is alive and is still in soft-lock range. Used to cut the manual hold
+        /// short instead of leaving the player locked onto a corpse.
+        /// </summary>
+        bool IsManualTargetStillValid()
+        {
+            if (m_ServerCharacter.TargetId == 0) return false;
+            if (m_TargetServerCharacter == null) return false;
+            if (m_TargetServerCharacter.LifeState != LifeState.Alive) return false;
+            if (m_TargetServerCharacter.physicsWrapper == null) return false;
+
+            Vector3 toTarget = m_TargetServerCharacter.physicsWrapper.Transform.position - m_PhysicsWrapper.Transform.position;
+            toTarget.y = 0f;
+            return toTarget.sqrMagnitude <= k_AutoTargetRange * k_AutoTargetRange;
         }
 
         // Radius (metres) around the cursor's ground point within which a left-click will
@@ -753,7 +876,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             ulong myNetId = m_ServerCharacter.NetworkObjectId;
             int numHits = Physics.OverlapSphereNonAlloc(point, radius, m_AutoTargetHits, m_AutoTargetMask);
 
-            float bestDistSqr = radius * radius;
+            float bestScore = radius * radius;
             for (int i = 0; i < numHits; i++)
             {
                 var candidate = m_AutoTargetHits[i].GetComponentInParent<ServerCharacter>();
@@ -761,11 +884,15 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 if ((ulong)(uint)candidate.netId == myNetId) continue;
                 if (candidate.LifeState != LifeState.Alive) continue;
                 if (!candidate.IsNpc && !GameDataSource.IsPvPMode) continue;
+                if (candidate.physicsWrapper == null) continue;
 
                 float distSqr = (candidate.physicsWrapper.Transform.position - point).sqrMagnitude;
-                if (distSqr < bestDistSqr)
+                // Clicking near a player and an imp at once should pick the player — that's
+                // who you meant. NPCs are scored as if they were a bit further away.
+                float score = candidate.IsNpc ? distSqr : distSqr * 0.35f;
+                if (distSqr < radius * radius && score < bestScore)
                 {
-                    bestDistSqr = distSqr;
+                    bestScore = score;
                     enemy = candidate;
                 }
             }

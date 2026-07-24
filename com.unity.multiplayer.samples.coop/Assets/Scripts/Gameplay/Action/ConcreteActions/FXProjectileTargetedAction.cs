@@ -84,6 +84,14 @@ namespace Unity.BossRoom.Gameplay.Actions
                         ApplySplashDamage(clientCharacter, m_DamageableTarget.transform.position, m_DamageableTarget.NetworkObjectId);
                     }
                 }
+                else if (Config.Radius > 0f)
+                {
+                    // Skillshot to a point (no direct target under the aim): still deal area
+                    // damage at the impact spot, so aiming near foes rather than exactly on
+                    // one connects. Position is where the shot landed (updated to the wall on
+                    // a blocked line of sight in OnStart). primaryTargetId 0 skips nothing.
+                    ApplySplashDamage(clientCharacter, Data.Position, 0);
+                }
             }
             return true;
         }

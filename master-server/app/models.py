@@ -68,9 +68,22 @@ class Lobby(_Doc):
     is_dedicated: bool = False
     # Set for dedicated lobbies: the GameServer.server_id backing this lobby.
     server_id: str | None = None
+    # True for player-hosted lobbies that route through the self-hosted LRM relay:
+    # the host's PC runs the game, the VPS only forwards packets. Mutually exclusive
+    # with is_dedicated. Listed in public search like any non-private lobby.
+    is_relay: bool = False
+    # Set for relay lobbies: the LRM relay serverId clients use to reach the host.
+    # (host_ip / host_port are unused for these — the relay endpoint is a client
+    # config constant, not per-lobby.)
+    relay_server_id: str | None = None
     # Null for public lobbies; bcrypt hash for private ones.
     password_hash: str | None = None
     last_heartbeat: datetime = Field(default_factory=utcnow)
+    # Set to the instant the lobby dropped to zero players; cleared (None) while
+    # anyone is in it. A lobby that stays empty past empty_lobby_ttl_seconds is
+    # pruned even if the host keeps heartbeating, so abandoned/never-filled rooms
+    # (and their dedicated containers) don't linger in the public list.
+    empty_since: datetime | None = None
 
 
 class JoinToken(_Doc):

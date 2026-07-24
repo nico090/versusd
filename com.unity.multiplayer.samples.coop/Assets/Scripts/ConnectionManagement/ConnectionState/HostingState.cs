@@ -118,15 +118,13 @@ namespace Unity.BossRoom.ConnectionManagement
                 return ConnectStatus.ServerFull;
             }
 
-            // Build-type compatibility only matters for player-hosted (P2P) sessions,
-            // where a debug host and a release client can desync. A dedicated server
-            // (headless batch mode) is always release and legitimately serves clients
-            // of any flavor, so don't gate it on the server's own build type.
-            if (!Application.isBatchMode && connectionPayload.isDebug != Debug.isDebugBuild)
-            {
-                return ConnectStatus.IncompatibleBuildType;
-            }
-
+            // NOTE: BossRoom's original build-type gate (reject when
+            // connectionPayload.isDebug != Debug.isDebugBuild) was removed on purpose.
+            // A Unity "Development Build" and a release build are wire-compatible (the flag
+            // only toggles profiler/deep stack traces, not serialization or protocol), so the
+            // gate added no real safety and constantly kicked P2P joiners whenever the two
+            // machines were built with different "Development Build" settings — surfacing as
+            // IncompatibleBuildType rejections and an endless client reconnect loop.
             return SessionManager<SessionPlayerData>.Instance.IsDuplicateConnection(connectionPayload.playerId) ?
                 ConnectStatus.LoggedInAgain : ConnectStatus.Success;
         }

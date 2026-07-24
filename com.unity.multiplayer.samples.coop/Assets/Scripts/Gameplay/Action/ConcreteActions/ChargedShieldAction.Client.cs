@@ -31,6 +31,13 @@ namespace Unity.BossRoom.Gameplay.Actions
                 {
                     m_ChargeGraphics.Shutdown();
                 }
+
+                // Never leave the animator in the charge-up loop if the action was cut short.
+                if (!string.IsNullOrEmpty(Config.Anim2) && clientCharacter.OurAnimator)
+                {
+                    clientCharacter.OurAnimator.ResetTrigger(Config.Anim);
+                    clientCharacter.OurAnimator.SetTrigger(Config.Anim2);
+                }
             }
 
             if (m_ShieldGraphics)
@@ -44,6 +51,16 @@ namespace Unity.BossRoom.Gameplay.Actions
             if (!IsChargingUp()) { return; }
 
             m_StoppedChargingUpTime = Time.time;
+
+            // End the charge-up animation loop locally too: on a headless dedicated server the
+            // server-side NetworkAnimator trigger never reaches clients, which would leave the
+            // hero stuck in the shield pose (and out of its run/idle states) for good.
+            if (!string.IsNullOrEmpty(Config.Anim2) && clientCharacter.OurAnimator)
+            {
+                clientCharacter.OurAnimator.ResetTrigger(Config.Anim);
+                clientCharacter.OurAnimator.SetTrigger(Config.Anim2);
+            }
+
             if (m_ChargeGraphics)
             {
                 m_ChargeGraphics.Shutdown();

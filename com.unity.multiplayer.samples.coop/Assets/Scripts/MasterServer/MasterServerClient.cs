@@ -66,6 +66,9 @@ namespace Unity.BossRoom.MasterServer
         public Task<LobbyResponse> CreateLobbyAsync(CreateLobbyRequest req) =>
             PostAsync<LobbyResponse>("/lobby", JsonUtility.ToJson(req));
 
+        public Task<LobbyResponse> CreateRelayLobbyAsync(CreateRelayLobbyRequest req) =>
+            PostAsync<LobbyResponse>("/lobby/relay", JsonUtility.ToJson(req));
+
         public Task<JoinResponse> JoinLobbyAsync(string sessionId, string password = null) =>
             PostAsync<JoinResponse>($"/lobby/{sessionId}/join",
                 JsonUtility.ToJson(new JoinLobbyRequest { password = password }));
