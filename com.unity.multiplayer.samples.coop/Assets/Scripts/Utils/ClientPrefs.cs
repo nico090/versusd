@@ -21,10 +21,16 @@ namespace Unity.BossRoom.Utils
         // On by default. Playtesting on 2026-07-25 had defaulted this off: a camera that follows the
         // walk makes the controls drift away from the screen while it turns, which was worse than
         // the fixed camera it replaced. What changed is that the preference no longer applies to
-        // keyboard+mouse at all — there the camera is fixed and the player swings it themselves with
-        // a middle-mouse drag (MouseCameraOrbit). All that's left under this preference is touch and
-        // gamepad, which have no spare input for a manual camera, so the drift is the lesser evil
-        // there. The on-screen toggle still turns it off for anyone who disagrees.
+        // the schemes that drive the camera themselves — keyboard+mouse with a middle-drag
+        // (MouseCameraOrbit), touch with a drag on the right half (TouchCameraOrbit). Both are
+        // gated out in ClientInputSender.UpdateCameraControlScheme, so all that is left under this
+        // preference is the gamepad, which has no spare input for a manual camera and where the
+        // drift is the lesser evil. The on-screen toggle still turns it off for anyone who disagrees.
+        //
+        // Note this stays a plain default rather than becoming platform-dependent: a phone reaches
+        // this code too (a pad can be paired to one), and the scheme gate is the right place to
+        // answer "does this player drive their own camera" — a saved preference cannot, because a
+        // value stored by an earlier build would outlive the change that made it wrong.
         const bool k_DefaultCameraAutoRotate = true;
 
         public static float GetMasterVolume()

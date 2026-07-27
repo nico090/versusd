@@ -151,14 +151,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
         float m_LastPointerInputTime;
         float m_LastMovementInputTime;
 
-        // Same idea, one level coarser, for who turns the camera: keyboard+mouse means the player
-        // does it themselves (middle-drag, see MouseCameraOrbit), touch/gamepad means the camera
-        // swings by itself (CameraAutoRotate). Whichever family of devices was used last wins, so a
-        // PC player with a pad plugged in gets whichever one they actually have in their hands.
-        // Both start at 0 so the seed CameraAutoRotateToggle takes from the present devices holds
-        // until the player touches something.
-        float m_LastKeyboardMouseTime;
-        float m_LastTouchOrPadTime;
+        // Same idea, one level coarser, for who turns the camera: a scheme with a manual camera
+        // turns it itself, one without gets CameraAutoRotate swinging it. Whichever family of
+        // devices was used last wins, so a PC player with a pad plugged in gets whichever one they
+        // actually have in their hands. Both start at 0 so the seed CameraAutoRotateToggle takes
+        // from the present devices holds until the player touches something.
+        float m_LastManualCameraSchemeTime;
+        float m_LastGamepadTime;
 
         public event Action<Vector3> ClientMoveEvent;
 
@@ -750,10 +749,18 @@ namespace Unity.BossRoom.Gameplay.UserInput
         /// <item><b>keyboard+mouse</b> — nobody turns it on its own. The player does it with a
         /// middle-mouse drag (<see cref="MouseCameraOrbit"/>) and zooms with the wheel, so a camera
         /// that also wandered by itself would be fighting them.</item>
-        /// <item><b>touch / on-screen joystick / gamepad</b> — <see cref="CameraAutoRotate"/> swings
-        /// it to follow the walk. There's no spare input for a manual camera on those, and dragging
-        /// with a second finger would collide with tap-to-select.</item>
+        /// <item><b>touch</b> — same as keyboard+mouse. The player drags on the right half of the
+        /// screen (<see cref="TouchCameraOrbit"/>) and zooms with the bar.</item>
+        /// <item><b>gamepad</b> — <see cref="CameraAutoRotate"/> swings it to follow the walk. The
+        /// only scheme left with no spare input for a camera of its own.</item>
         /// </list>
+        /// <para>Touch used to be grouped with the gamepad, and that is what made walking sideways
+        /// come out as walking forward: the auto-rotation has to freeze the movement basis while it
+        /// turns (see the class docs on <see cref="CameraAutoRotate"/>), so the stick stops matching
+        /// the screen, and the mismatch accumulates. Now that touch has a manual camera the trade is
+        /// no longer worth making, and it is gated off here rather than defaulted off in
+        /// <c>ClientPrefs</c> — a saved preference from an earlier build would have kept the old
+        /// behaviour alive, and a scheme with its own camera should never be asking the question.</para>
         /// Note this deliberately keys off the device family rather than
         /// <see cref="m_AimMode"/>: a keyboard-only PC player never trips the pointer latch, but
         /// they do have a wheel to press, so the camera is theirs to turn too.
@@ -775,9 +782,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
             var keyboard = Keyboard.current;
             bool keyboardActive = keyboard != null && keyboard.anyKey.isPressed;
 
-            if (mouseActive || keyboardActive)
+            bool touchActive = (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.isPressed)
+                || MobileMovementJoystick.IsActive;
+
+            if (mouseActive || keyboardActive || touchActive)
             {
-                m_LastKeyboardMouseTime = now;
+                m_LastManualCameraSchemeTime = now;
             }
 
             var gamepad = Gamepad.current;
@@ -785,19 +795,17 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 (gamepad.leftStick.ReadValue().sqrMagnitude > 0.04f
                  || gamepad.rightStick.ReadValue().sqrMagnitude > 0.04f
                  || gamepad.dpad.ReadValue().sqrMagnitude > 0.04f);
-            bool touchActive = (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.isPressed)
-                || MobileMovementJoystick.IsActive;
 
-            if (padActive || touchActive)
+            if (padActive)
             {
-                m_LastTouchOrPadTime = now;
+                m_LastGamepadTime = now;
             }
 
-            if (m_LastKeyboardMouseTime > m_LastTouchOrPadTime)
+            if (m_LastManualCameraSchemeTime > m_LastGamepadTime)
             {
                 CameraAutoRotate.AllowedByScheme = false;
             }
-            else if (m_LastTouchOrPadTime > m_LastKeyboardMouseTime)
+            else if (m_LastGamepadTime > m_LastManualCameraSchemeTime)
             {
                 CameraAutoRotate.AllowedByScheme = true;
             }

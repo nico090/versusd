@@ -42,6 +42,10 @@ namespace Unity.BossRoom.Gameplay.UserInput
         // Default camera pitch, matching CameraController's authored VerticalAxis value.
         const float k_DefaultVertical = 0.5f;
 
+        // Set in Awake so OwnsScreenPoint can answer for whoever asks. Only ever one of these:
+        // Bootstrap creates a single DontDestroyOnLoad instance.
+        static MobileZoomBar s_Instance;
+
         RectTransform m_Track;
         RectTransform m_Fill;
         RectTransform m_Handle;
@@ -68,8 +72,17 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
         void Awake()
         {
+            s_Instance = this;
             BuildUI();
             SetVisible(false);
+        }
+
+        void OnDestroy()
+        {
+            if (s_Instance == this)
+            {
+                s_Instance = null;
+            }
         }
 
         void BuildUI()
@@ -222,6 +235,20 @@ namespace Unity.BossRoom.Gameplay.UserInput
         {
             m_ActiveTouchId = -1;
             IsActive = false;
+        }
+
+        /// <summary>
+        /// Whether a screen point falls in this bar's grab area, for other touch widgets that poll
+        /// raw touches and have to keep off it. False while the bar is hidden, and false before it
+        /// has been built. Exposed because the geometry belongs here: <see cref="TouchCameraOrbit"/>
+        /// needs the same answer and duplicating the fractions would let the two drift apart.
+        /// </summary>
+        public static bool OwnsScreenPoint(Vector2 screenPos)
+        {
+            return s_Instance != null
+                   && s_Instance.m_Track != null
+                   && s_Instance.m_Track.gameObject.activeSelf
+                   && s_Instance.IsInsideGrabArea(screenPos);
         }
 
         bool IsInsideGrabArea(Vector2 screenPos)

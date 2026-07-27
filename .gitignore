@@ -47,3 +47,7 @@ com.unity.multiplayer.samples.coop/.utmp/
 # Accidental dev/null (created by shell redirects on Windows)
 /dev/
 *.rar
+
+# Salida de builds locales (Unity)
+com.unity.multiplayer.samples.coop/iosbuild/
+com.unity.multiplayer.samples.coop/windowsbuild/

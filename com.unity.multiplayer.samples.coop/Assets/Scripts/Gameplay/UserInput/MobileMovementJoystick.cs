@@ -32,10 +32,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
         /// <summary>True while a movement touch is currently being tracked.</summary>
         public static bool IsActive { get; private set; }
 
-        // The movement joystick only claims touches that start inside this fraction of the
-        // screen (measured from the left edge). The right side stays free for the action bar
-        // and tap-to-select.
-        const float k_MovementZoneWidthFraction = 0.5f;
+        /// <summary>
+        /// The movement joystick only claims touches that start inside this fraction of the
+        /// screen (measured from the left edge). The right side stays free for the action bar,
+        /// tap-to-select and the camera drag (<see cref="TouchCameraOrbit"/>, which reads this so
+        /// the split between the two halves is defined in exactly one place).
+        /// </summary>
+        public const float MovementZoneWidthFraction = 0.5f;
 
         RectTransform m_Background;
         RectTransform m_Handle;
@@ -140,7 +143,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
                 // Only claim presses that start in the movement zone and not on top of a UI
                 // element (so the action bar / menu buttons still work).
-                if (pos.x > Screen.width * k_MovementZoneWidthFraction)
+                if (pos.x > Screen.width * MovementZoneWidthFraction)
                 {
                     continue;
                 }

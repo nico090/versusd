@@ -59,15 +59,19 @@ namespace Unity.BossRoom.Gameplay.UserInput
             CameraAutoRotate.Enabled = ClientPrefs.GetCameraAutoRotate();
 
             // Seed of the control-scheme gate, from the devices that exist rather than from one
-            // that's been used: a phone has no mouse, a desktop has no touchscreen, and that's the
-            // answer for both until the player touches something and
-            // ClientInputSender.UpdateCameraControlScheme latches it properly. Without a seed a
-            // desktop player would get one auto-swing's worth of camera movement at spawn before
-            // the latch caught up — and this button would blink into view for those frames.
-            CameraAutoRotate.AllowedByScheme = Application.isMobilePlatform
-                || Touchscreen.current != null
-                || Gamepad.current != null
-                || (Mouse.current == null && Keyboard.current == null);
+            // that's been used, holding until the player touches something and
+            // ClientInputSender.UpdateCameraControlScheme latches it properly.
+            //
+            // The gamepad is the only scheme left with no camera of its own — keyboard+mouse has the
+            // middle-drag, touch has TouchCameraOrbit — so it is the only thing that can seed this
+            // on. Anything with a mouse, a keyboard or a touchscreen present seeds off: those all
+            // drive the camera themselves, and seeding on would hand them one unasked-for swing at
+            // spawn before the latch caught up, with this button blinking into view for those frames.
+            CameraAutoRotate.AllowedByScheme = Gamepad.current != null
+                && Touchscreen.current == null
+                && Mouse.current == null
+                && Keyboard.current == null
+                && !Application.isMobilePlatform;
 
             var go = new GameObject("CameraAutoRotateToggle");
             DontDestroyOnLoad(go);
