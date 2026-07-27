@@ -66,6 +66,14 @@ namespace VersusD.EditorTools
                 project.SetBuildProperty(guid, "ENABLE_BITCODE", "NO");
             }
 
+            // UnityFramework va embebido dentro del .app, y iOS rechaza la instalacion si un
+            // sub-bundle comparte identificador con el padre (MIInstallerErrorDomain 57,
+            // DuplicateIdentifier). Es facil de romper a mano: al elegir el team en la pestaña
+            // Signing & Capabilities de este target, es habitual editarle tambien el bundle id y
+            // dejarle el de la app. Se reescribe en cada build para que no dependa de eso.
+            project.SetBuildProperty(unityFramework, "PRODUCT_BUNDLE_IDENTIFIER",
+                IOSBuild.BundleIdentifier + ".framework");
+
             // Solo arm64: los dispositivos con armv7 no llegan al minimo de iOS que pedimos.
             project.SetBuildProperty(mainTarget, "ARCHS", "arm64");
 
