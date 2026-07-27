@@ -765,7 +765,7 @@ PrefabInstance:
     - target: {fileID: 6185645167637820625, guid: d5ce6d09afe6d8d47af7eba5a27706bc, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: bbb53919791b609458ac134d15fc8092, type: 2}
+      objectReference: {fileID: 2100000, guid: ef0f7694aa14e254dbd6872108345c34, type: 2}
     - target: {fileID: 6254936495104989614, guid: d5ce6d09afe6d8d47af7eba5a27706bc, type: 3}
       propertyPath: m_RootOrder
       value: 4
@@ -990,7 +990,7 @@ PrefabInstance:
     - target: {fileID: 1611932597302536215, guid: 42c55d5fc0ddb2040864db8ec9c1c01b, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: bbb53919791b609458ac134d15fc8092, type: 2}
+      objectReference: {fileID: 2100000, guid: ef0f7694aa14e254dbd6872108345c34, type: 2}
     - target: {fileID: 5965419572804802562, guid: 42c55d5fc0ddb2040864db8ec9c1c01b, type: 3}
       propertyPath: m_Name
       value: Archer_weapon_Boy

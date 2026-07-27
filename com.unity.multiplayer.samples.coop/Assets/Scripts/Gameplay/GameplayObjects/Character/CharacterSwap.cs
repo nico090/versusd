@@ -30,6 +30,8 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             public AnimatorOverrideController animatorOverrides; // references a separate stand-alone object in the project
             private List<Renderer> m_CachedRenderers;
 
+            static readonly List<Renderer> s_RendererScratch = new List<Renderer>();
+
             public void SetFullActive(bool isActive)
             {
                 ears.SetActive(isActive);
@@ -55,6 +57,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                     AddRenderer(ref m_CachedRenderers, head);
                     AddRenderer(ref m_CachedRenderers, mouth);
                     AddRenderer(ref m_CachedRenderers, hair);
+                    AddRenderer(ref m_CachedRenderers, eyes);
                     AddRenderer(ref m_CachedRenderers, torso);
                     AddRenderer(ref m_CachedRenderers, gearRightHand);
                     AddRenderer(ref m_CachedRenderers, gearLeftHand);
@@ -69,9 +72,21 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             private void AddRenderer(ref List<Renderer> rendererList, GameObject bodypartGO)
             {
                 if (!bodypartGO) { return; }
-                var bodyPartRenderer = bodypartGO.GetComponent<Renderer>();
-                if (!bodyPartRenderer) { return; }
-                rendererList.Add(bodyPartRenderer);
+
+                // we grab the renderers of the children too: some body parts (like the swapped-out heads) are
+                // authored as a child object of the original body part, so a plain GetComponent would miss them.
+                bodypartGO.GetComponentsInChildren<Renderer>(true, s_RendererScratch);
+                foreach (var bodyPartRenderer in s_RendererScratch)
+                {
+                    // only mesh-based renderers: skip trails/particles/etc. that may be parented under a body part
+                    if (bodyPartRenderer is MeshRenderer || bodyPartRenderer is SkinnedMeshRenderer)
+                    {
+                        if (!rendererList.Contains(bodyPartRenderer))
+                        {
+                            rendererList.Add(bodyPartRenderer);
+                        }
+                    }
+                }
             }
 
         }
@@ -113,7 +128,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         /// When we swap all our Materials out for a special material,
         /// we keep the old references here, so we can swap them back.
         /// </summary>
-        private Dictionary<Renderer, Material> m_OriginalMaterials = new Dictionary<Renderer, Material>();
+        private Dictionary<Renderer, Material[]> m_OriginalMaterials = new Dictionary<Renderer, Material[]>();
 
         ClientCharacter m_ClientCharacter;
 
@@ -176,7 +191,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             {
                 if (entry.Key)
                 {
-                    entry.Key.material = entry.Value;
+                    entry.Key.sharedMaterials = entry.Value;
                 }
             }
             m_OriginalMaterials.Clear();
@@ -189,8 +204,17 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             {
                 if (bodyPart)
                 {
-                    m_OriginalMaterials[bodyPart] = bodyPart.material;
-                    bodyPart.material = overrideMaterial;
+                    // we swap every material slot, not just the first one: some models (like the swapped-in heads)
+                    // use several submeshes, and any slot we skipped would stay fully visible while stealthed.
+                    var originalMaterials = bodyPart.sharedMaterials;
+                    m_OriginalMaterials[bodyPart] = originalMaterials;
+
+                    var overrideMaterials = new Material[originalMaterials.Length];
+                    for (int i = 0; i < overrideMaterials.Length; ++i)
+                    {
+                        overrideMaterials[i] = overrideMaterial;
+                    }
+                    bodyPart.sharedMaterials = overrideMaterials;
                 }
             }
         }

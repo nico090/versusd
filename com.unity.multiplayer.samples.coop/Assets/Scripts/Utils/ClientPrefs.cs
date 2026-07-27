@@ -14,6 +14,7 @@ namespace Unity.BossRoom.Utils
         const string k_ClientGUIDKey = "client_guid";
         const string k_AvailableProfilesKey = "AvailableProfiles";
         const string k_CameraAutoRotateKey = "CameraAutoRotate";
+        const string k_ControlsHintExpandedKey = "ControlsHintExpanded";
 
         const float k_DefaultMasterVolume = 0.5f;
         const float k_DefaultMusicVolume = 0.8f;
@@ -73,6 +74,18 @@ namespace Unity.BossRoom.Utils
         public static void SetCameraAutoRotate(bool autoRotate)
         {
             PlayerPrefs.SetInt(k_CameraAutoRotateKey, autoRotate ? 1 : 0);
+        }
+
+        /// <summary>Whether the bottom-left controls card is unfolded (it starts unfolded, then the
+        /// player folds it away with H once they know the bindings).</summary>
+        public static bool GetControlsHintExpanded()
+        {
+            return PlayerPrefs.GetInt(k_ControlsHintExpandedKey, 1) != 0;
+        }
+
+        public static void SetControlsHintExpanded(bool expanded)
+        {
+            PlayerPrefs.SetInt(k_ControlsHintExpandedKey, expanded ? 1 : 0);
         }
 
         public static string GetAvailableProfiles()

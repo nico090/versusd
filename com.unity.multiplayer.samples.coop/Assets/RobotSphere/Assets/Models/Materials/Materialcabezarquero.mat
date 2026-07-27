@@ -23,10 +23,11 @@ Material:
   m_Name: Materialcabezarquero
   m_Shader: {fileID: 4800000, guid: 933532a4fcc9baf4fa0491de14d08ed7, type: 3}
   m_Parent: {fileID: 2100000, guid: 67d0bf36fb6891240882652ab0209f6f, type: 2}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
+  m_ModifiedSerializedProperties: 2
+  m_ValidKeywords:
+  - _EMISSION
   m_InvalidKeywords: []
-  m_LightmapFlags: 4
+  m_LightmapFlags: 2
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
@@ -37,11 +38,16 @@ Material:
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
-    m_TexEnvs: []
+    m_TexEnvs:
+    - _EmissionMap:
+        m_Texture: {fileID: 2800000, guid: 8a5b3af15db0b3d4e9b5fd91fe2e7c30, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats: []
     m_Colors:
     - _BaseColor: {r: 0, g: 0.71817875, b: 1, a: 1}
     - _Color: {r: 0, g: 0.71817875, b: 1, a: 1}
+    - _EmissionColor: {r: 0, g: 0.47353154, b: 1, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
