@@ -66,7 +66,10 @@ namespace Unity.BossRoom.Gameplay.UI
             bool dedicatedAllowed = m_SessionUIMediator != null && m_SessionUIMediator.DedicatedServersEnabled;
             bool useDedicated = dedicatedAllowed && m_UseDedicatedServer != null && m_UseDedicatedServer.isOn;
             string password = (isPrivate && m_PasswordField != null) ? m_PasswordField.text : null;
-            string name = m_SessionNameInputField != null ? m_SessionNameInputField.text : "Room";
+            // Left blank on purpose when there's no field / no text: the mediator generates a
+            // unique "Room-XXXX" name, since a fixed default collides with the master server's
+            // duplicate-name check (409) once two players create an unnamed room.
+            string name = m_SessionNameInputField != null ? m_SessionNameInputField.text : string.Empty;
 
             if (useDedicated)
                 m_SessionUIMediator?.CreateDedicatedSessionRequest(name, isPrivate, password);
@@ -226,7 +229,8 @@ namespace Unity.BossRoom.Gameplay.UI
             // ── Room name ─────────────────────────────────────────────────────
             PlaceText(bg.transform, "Room Name", y, 450f, 22f, 12, FontStyle.Normal, new Color(0.75f, 0.75f, 0.75f));
             y -= 26f;
-            m_SessionNameInputField = MakeInputField(bg.transform, "My Room", ref y, false, 450f);
+            m_SessionNameInputField = MakeInputField(bg.transform,
+                "My Room  (leave blank for a random name)", ref y, false, 450f);
 
             // ── Private toggle ────────────────────────────────────────────────
             y -= 10f;

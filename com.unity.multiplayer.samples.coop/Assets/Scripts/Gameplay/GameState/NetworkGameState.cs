@@ -46,7 +46,8 @@ namespace Unity.BossRoom.Gameplay.GameState
     /// </summary>
     public class NetworkGameState : NetworkBehaviour
     {
-        public const float MatchDuration = 300f;
+        /// <summary>Match length in seconds (3 minutes).</summary>
+        public const float MatchDuration = 180f;
 
         /// <summary>
         /// Score that wins the match. First player to reach it ends the game (free-for-all).

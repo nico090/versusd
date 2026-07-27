@@ -1,0 +1,34 @@
+UI sprite art in this folder
+============================
+
+Most sprites here were regenerated from two Creative Commons Zero (CC0 1.0)
+asset packs by Kenney (www.kenney.nl). CC0 waives all copyright: free to use in
+personal, educational and commercial projects, with no attribution required.
+Credited here anyway as a courtesy and to record where the art came from.
+
+  - Kenney "UI Pack" 2.0 (2024-06-12)
+    https://kenney.nl/assets/ui-pack
+    Used for: buttons, input fields, panels/frames, sliders, checkmark, arrows.
+
+  - Kenney "Board Game Icons" 1.1 (2024-07-22)
+    https://kenney.nl/assets/board-game-icons
+    Used for: action/skill icons, class symbols, portraits, player tags.
+
+  - Font "Kenney Future" (bundled with UI Pack, CC0)
+    Used to draw the P1..P8 labels on ui_ptag_*.png.
+
+License text: http://creativecommons.org/publicdomain/zero/1.0/
+
+Each replacement keeps the original file's pixel dimensions and GUID, so prefab
+references and RectTransform layouts are unaffected. Nine-sliced sprites were
+rescaled with a real nine-slice (corners at native size) and their .meta
+spriteBorder was updated to match the new corner radius.
+
+Files NOT replaced (no meaningful equivalent exists in a generic UI library);
+these are still original Unity BossRoom art under the Unity Companion License:
+
+  br_icon, ui_title_logo, img_HowToPlay, ui_sound_settings,
+  ui_help_actions, ui_help_attack, ui_help_imp1, ui_help_imp2, ui_help_imp3,
+  ui_help_move, ui_help_overlay,
+  ui_bg_gradient, ui_bg_gradient2, ui_transparent,
+  JHayesMnS_logo, Room8_logo, StormFlag_logo (third-party studio credit logos)

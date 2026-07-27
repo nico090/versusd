@@ -87,7 +87,7 @@ namespace Unity.BossRoom.Gameplay.UI
                 return;
             }
             SetSpinner(true);
-            string name = string.IsNullOrEmpty(sessionName) ? "Room" : sessionName;
+            string name = ResolveSessionName(sessionName);
             var lobby = await m_MasterServerFacade.CreateDedicatedLobbyAsync(name, 8, isPrivate, password);
             SetSpinner(false);
 
@@ -113,6 +113,29 @@ namespace Unity.BossRoom.Gameplay.UI
             Debug.Log("[SessionUI] No dedicated servers available — falling back to relay.");
             ShowFallbackNotice();
             CreateSessionRequest(name, isPrivate, password);
+        }
+
+        /// <summary>
+        /// Normalizes the room name the player typed. The master server rejects duplicate
+        /// names with a 409 (comparison is trimmed + case-insensitive), so a fixed "Room"
+        /// fallback failed as soon as a second player created a room without naming it.
+        /// A blank (or whitespace-only) name becomes "Room-XXXX" with a random suffix instead.
+        /// Idempotent for non-empty names, so it's safe to call again on the P2P fallback path.
+        /// </summary>
+        static string ResolveSessionName(string sessionName)
+        {
+            string trimmed = sessionName?.Trim();
+            return string.IsNullOrEmpty(trimmed) ? $"Room-{RandomCode(4)}" : trimmed;
+        }
+
+        // Excludes look-alike glyphs (I/1, O/0) so a generated name stays easy to read out loud.
+        static string RandomCode(int length)
+        {
+            const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            var chars = new char[length];
+            for (int i = 0; i < length; i++)
+                chars[i] = alphabet[UnityEngine.Random.Range(0, alphabet.Length)];
+            return new string(chars);
         }
 
         void ShowFallbackNotice()
@@ -195,7 +218,7 @@ namespace Unity.BossRoom.Gameplay.UI
                 return;
             }
             SetSpinner(true);
-            string name = string.IsNullOrEmpty(sessionName) ? "Room" : sessionName;
+            string name = ResolveSessionName(sessionName);
 
             // The LRM transport connects to the relay on Awake; make sure it's up before hosting.
             m_ConnectionManager.EnsureRelayConnected();
