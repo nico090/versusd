@@ -86,6 +86,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
         Vector2 m_LastPosition;
         bool m_PastThreshold;
         float m_TravelSincePress;
+        float m_NextStateLog;   // TEMPORARY, with k_Diagnostics.
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
@@ -109,12 +110,27 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 return;
             }
 
+            // Unconditional, every frame, not just while dragging. The scheme latch in
+            // ClientInputSender and the seed in CameraAutoRotateToggle both already say "not on
+            // touch", and a device build swung the camera anyway with both in place — so the
+            // guarantee stops being spread across two files that have to agree and moves into the
+            // component that replaces the feature. Suspend() is the API built for this (it eases a
+            // swing out rather than stopping it dead) and, unlike writing Enabled, it neither
+            // touches the player's persisted preference nor races the bootstrap order: those run in
+            // an undefined order relative to each other, this runs every frame regardless.
+            //
+            // Trade: a gamepad paired to a phone loses the auto-rotation too. Correct as far as it
+            // goes — the touchscreen is still there, so a manual camera is still available.
+            CameraAutoRotate.Suspend();
+
             ResolveCamera();
             if (m_OrbitalFollow == null)
             {
                 Release();
                 return;
             }
+
+            LogState(touchscreen);
 
             if (m_ActiveTouchId == -1)
             {
@@ -124,6 +140,31 @@ namespace Unity.BossRoom.Gameplay.UserInput
             {
                 ContinueTouch(touchscreen);
             }
+        }
+
+        // TEMPORARY, with k_Diagnostics. Once a second, so a single run on device answers both
+        // "is anything still driving the yaw on its own" and "did my finger ever get claimed".
+        void LogState(Touchscreen touchscreen)
+        {
+            if (!k_Diagnostics || Time.unscaledTime < m_NextStateLog)
+            {
+                return;
+            }
+            m_NextStateLog = Time.unscaledTime + 1f;
+
+            int pressed = 0;
+            foreach (var touch in touchscreen.touches)
+            {
+                if (touch.press.isPressed)
+                {
+                    pressed++;
+                }
+            }
+
+            Debug.Log($"[OrbitDiag] state: yaw={m_OrbitalFollow.HorizontalAxis.Value:F1} " +
+                      $"autoAllowed={CameraAutoRotate.AllowedByScheme} autoEnabled={CameraAutoRotate.Enabled} " +
+                      $"dragging={IsActive} activeTouch={m_ActiveTouchId} fingersDown={pressed} " +
+                      $"screen={Screen.width}x{Screen.height}");
         }
 
         void TryBeginTouch(Touchscreen touchscreen)
