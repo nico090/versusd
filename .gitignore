@@ -43,3 +43,4 @@ com.unity.multiplayer.samples.coop/.utmp/
 
 # Accidental dev/null (created by shell redirects on Windows)
 /dev/
+*.rar

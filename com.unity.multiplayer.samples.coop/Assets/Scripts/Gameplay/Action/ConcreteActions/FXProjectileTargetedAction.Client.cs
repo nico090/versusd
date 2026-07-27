@@ -97,10 +97,18 @@ namespace Unity.BossRoom.Gameplay.Actions
             {
                 // make sure this isn't a friend (or if it is, make sure this is a friendly-fire action)
                 var targetable = targetObject.GetComponent<ITargetable>();
-                if (targetable != null && targetable.IsNpc == (Config.IsFriendly ^ parent.serverCharacter.IsNpc))
+                if (targetable != null)
                 {
-                    // not a valid target
-                    return null;
+                    // Same faction rule the server uses (see FXProjectileTargetedAction.GetDamageableTarget):
+                    // in PvP a PC can target another PC, but never itself.
+                    bool isSelf = targetObject.netId == parent.serverCharacter.netId;
+                    bool pvpPcVsPc = GameDataSource.IsPvPMode && !targetable.IsNpc && !parent.serverCharacter.IsNpc && !isSelf;
+                    bool isInvalidFaction = targetable.IsNpc == (Config.IsFriendly ^ parent.serverCharacter.IsNpc);
+                    if (!pvpPcVsPc && isInvalidFaction)
+                    {
+                        // not a valid target
+                        return null;
+                    }
                 }
 
                 return targetObject;

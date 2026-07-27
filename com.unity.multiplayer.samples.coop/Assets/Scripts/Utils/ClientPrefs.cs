@@ -13,9 +13,18 @@ namespace Unity.BossRoom.Utils
         const string k_MusicVolumeKey = "MusicVolume";
         const string k_ClientGUIDKey = "client_guid";
         const string k_AvailableProfilesKey = "AvailableProfiles";
+        const string k_CameraAutoRotateKey = "CameraAutoRotate";
 
         const float k_DefaultMasterVolume = 0.5f;
         const float k_DefaultMusicVolume = 0.8f;
+        // On by default. Playtesting on 2026-07-25 had defaulted this off: a camera that follows the
+        // walk makes the controls drift away from the screen while it turns, which was worse than
+        // the fixed camera it replaced. What changed is that the preference no longer applies to
+        // keyboard+mouse at all — there the camera is fixed and the player swings it themselves with
+        // a middle-mouse drag (MouseCameraOrbit). All that's left under this preference is touch and
+        // gamepad, which have no spare input for a manual camera, so the drift is the lesser evil
+        // there. The on-screen toggle still turns it off for anyone who disagrees.
+        const bool k_DefaultCameraAutoRotate = true;
 
         public static float GetMasterVolume()
         {
@@ -53,6 +62,17 @@ namespace Unity.BossRoom.Utils
 
             PlayerPrefs.SetString(k_ClientGUIDKey, guidString);
             return guidString;
+        }
+
+        /// <summary>Whether the camera swings around to follow the direction of travel.</summary>
+        public static bool GetCameraAutoRotate()
+        {
+            return PlayerPrefs.GetInt(k_CameraAutoRotateKey, k_DefaultCameraAutoRotate ? 1 : 0) != 0;
+        }
+
+        public static void SetCameraAutoRotate(bool autoRotate)
+        {
+            PlayerPrefs.SetInt(k_CameraAutoRotateKey, autoRotate ? 1 : 0);
         }
 
         public static string GetAvailableProfiles()

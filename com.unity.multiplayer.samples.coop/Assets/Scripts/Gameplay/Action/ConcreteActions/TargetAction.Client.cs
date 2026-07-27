@@ -84,7 +84,11 @@ namespace Unity.BossRoom.Gameplay.Actions
 
             bool target_isnpc = targetObject.GetComponent<ITargetable>().IsNpc;
             bool myself_isnpc = parent.serverCharacter.CharacterClass.IsNpc;
-            bool hostile = target_isnpc != myself_isnpc;
+            // In PvP another player is a foe too, so the reticule must be hostile (red).
+            // Ourselves (e.g. the mage self-heal target) always stays friendly (green).
+            bool isSelf = targetObject.netId == parent.serverCharacter.netId;
+            bool pvpPcVsPc = GameDataSource.IsPvPMode && !target_isnpc && !myself_isnpc && !isSelf;
+            bool hostile = (target_isnpc != myself_isnpc) || pvpPcVsPc;
 
             m_TargetReticule.GetComponent<MeshRenderer>().material = hostile ? parent.ReticuleHostileMat : parent.ReticuleFriendlyMat;
         }
