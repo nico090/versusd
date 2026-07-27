@@ -51,3 +51,4 @@ com.unity.multiplayer.samples.coop/.utmp/
 # Salida de builds locales (Unity)
 com.unity.multiplayer.samples.coop/iosbuild/
 com.unity.multiplayer.samples.coop/windowsbuild/
+com.unity.multiplayer.samples.coop/*_BurstDebugInformation_DoNotShip/
