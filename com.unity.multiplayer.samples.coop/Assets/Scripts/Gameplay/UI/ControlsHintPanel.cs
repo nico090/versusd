@@ -1,5 +1,4 @@
 using Mirror;
-using Unity.BossRoom.CameraUtils;
 using Unity.BossRoom.Utils;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -10,15 +9,15 @@ namespace Unity.BossRoom.Gameplay.UI
     /// <summary>
     /// Small "how do I play this" card pinned to the bottom-left corner while a match is running.
     /// Desktop only: it lists the keyboard+mouse bindings, which is the half of the control scheme
-    /// nothing on screen already shows — touch players have the joystick, the zoom bar and the
-    /// auto-rotate button in front of them, and a list of key names would only be in their way.
+    /// nothing on screen already shows — touch players have the joystick and the zoom bar in front
+    /// of them, and a list of key names would only be in their way.
     ///
     /// <b>H</b> folds it down to a single line and back, and the choice is remembered between
     /// sessions, so it can teach the camera drag once and then get out of the way.
     ///
     /// Self-bootstrapping and code-built like the input widgets it documents
-    /// (<see cref="UserInput.MouseCameraOrbit"/>, <see cref="UserInput.CameraAutoRotateToggle"/>):
-    /// no scene or prefab wiring to lose to an Editor re-import. It carries no GraphicRaycaster
+    /// (<see cref="UserInput.MouseCameraOrbit"/>): no scene or prefab wiring to lose to an Editor
+    /// re-import. It carries no GraphicRaycaster
     /// either, so it never swallows a click meant for the world underneath it.
     /// </summary>
     public class ControlsHintPanel : MonoBehaviour
@@ -69,14 +68,12 @@ namespace Unity.BossRoom.Gameplay.UI
         void Update()
         {
             // Only while we're actually controlling a character: the same gate the camera drag uses,
-            // so the card doesn't sit over the main menu or the post-game screen. And only while the
-            // latched control scheme is keyboard+mouse (CameraAutoRotate.AllowedByScheme is the flag
-            // that split gets latched into) — a player on a pad or a touchscreen has different
-            // controls and the on-screen widgets to go with them, so a list of key names would just
-            // be sitting on top of their joystick.
+            // so the card doesn't sit over the main menu or the post-game screen. Bootstrap already
+            // refuses to build this on a phone, so a keyboard or a mouse being present is the whole
+            // remaining test — a desktop player who picks up a gamepad still has both on the desk,
+            // and the key names stay true for them.
             var keyboard = Keyboard.current;
             bool show = NetworkClient.localPlayer != null
-                && !CameraAutoRotate.AllowedByScheme
                 && (keyboard != null || Mouse.current != null);
             SetVisible(show);
             if (!show)

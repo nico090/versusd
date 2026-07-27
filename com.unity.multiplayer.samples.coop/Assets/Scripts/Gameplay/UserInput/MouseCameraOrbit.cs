@@ -1,5 +1,5 @@
 using Mirror;
-using Unity.BossRoom.CameraUtils;
+
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -12,11 +12,10 @@ namespace Unity.BossRoom.Gameplay.UserInput
     /// is wired on the camera prefab itself (the ScrollWheel action drives "Look Orbit Y", which is
     /// what reads as zoom in this rig; see <see cref="MobileZoomBar"/>).
     ///
-    /// This is the desktop half of the camera-control split: on keyboard+mouse the camera holds
-    /// still and the player turns it themselves with this, while on touch and gamepad — where there
-    /// is no third input to spare for it — <see cref="CameraAutoRotate"/> swings it automatically.
-    /// The switch between the two is latched per input device in
-    /// <c>ClientInputSender.UpdateCameraControlScheme</c>.
+    /// This is the desktop half of the camera control; <see cref="TouchCameraOrbit"/> is the touch
+    /// half. The camera never moves on its own: there used to be an auto-rotation that swung it to
+    /// follow the walk, and it was deleted because keeping the movement basis still for the length
+    /// of a swing is what made walking sideways come out as walking forward.
     ///
     /// Only the horizontal axis is touched. The vertical one is zoom here, and it already has the
     /// wheel: letting a drag move it too would mean every slightly-diagonal swing quietly changed
@@ -84,10 +83,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 return;
             }
 
-            // Belt and braces: on keyboard+mouse the auto-rotation is already gated off by the
-            // control scheme, but if both schemes are somehow live at once the player's own drag wins.
-            CameraAutoRotate.Suspend();
-
             float deltaX = mouse.delta.ReadValue().x;
             if (Mathf.Abs(deltaX) < 0.001f)
             {
@@ -101,7 +96,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 ? WrapIntoRange(value, axis.Range)
                 : Mathf.Clamp(value, axis.Range.x, axis.Range.y);
 
-            // Copy-modify-assign: HorizontalAxis is a struct property (same as CameraAutoRotate).
+            // Copy-modify-assign: HorizontalAxis is a struct property (same as TouchCameraOrbit).
             m_OrbitalFollow.HorizontalAxis = axis;
         }
 

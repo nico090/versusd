@@ -13,25 +13,10 @@ namespace Unity.BossRoom.Utils
         const string k_MusicVolumeKey = "MusicVolume";
         const string k_ClientGUIDKey = "client_guid";
         const string k_AvailableProfilesKey = "AvailableProfiles";
-        const string k_CameraAutoRotateKey = "CameraAutoRotate";
         const string k_ControlsHintExpandedKey = "ControlsHintExpanded";
 
         const float k_DefaultMasterVolume = 0.5f;
         const float k_DefaultMusicVolume = 0.8f;
-        // On by default. Playtesting on 2026-07-25 had defaulted this off: a camera that follows the
-        // walk makes the controls drift away from the screen while it turns, which was worse than
-        // the fixed camera it replaced. What changed is that the preference no longer applies to
-        // the schemes that drive the camera themselves — keyboard+mouse with a middle-drag
-        // (MouseCameraOrbit), touch with a drag on the right half (TouchCameraOrbit). Both are
-        // gated out in ClientInputSender.UpdateCameraControlScheme, so all that is left under this
-        // preference is the gamepad, which has no spare input for a manual camera and where the
-        // drift is the lesser evil. The on-screen toggle still turns it off for anyone who disagrees.
-        //
-        // Note this stays a plain default rather than becoming platform-dependent: a phone reaches
-        // this code too (a pad can be paired to one), and the scheme gate is the right place to
-        // answer "does this player drive their own camera" — a saved preference cannot, because a
-        // value stored by an earlier build would outlive the change that made it wrong.
-        const bool k_DefaultCameraAutoRotate = true;
 
         public static float GetMasterVolume()
         {
@@ -71,16 +56,6 @@ namespace Unity.BossRoom.Utils
             return guidString;
         }
 
-        /// <summary>Whether the camera swings around to follow the direction of travel.</summary>
-        public static bool GetCameraAutoRotate()
-        {
-            return PlayerPrefs.GetInt(k_CameraAutoRotateKey, k_DefaultCameraAutoRotate ? 1 : 0) != 0;
-        }
-
-        public static void SetCameraAutoRotate(bool autoRotate)
-        {
-            PlayerPrefs.SetInt(k_CameraAutoRotateKey, autoRotate ? 1 : 0);
-        }
 
         /// <summary>Whether the bottom-left controls card is unfolded (it starts unfolded, then the
         /// player folds it away with H once they know the bindings).</summary>

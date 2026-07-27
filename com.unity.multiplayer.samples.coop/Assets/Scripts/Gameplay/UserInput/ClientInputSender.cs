@@ -88,10 +88,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
         // the character kept running forever. Resend the stop a few times to cover that window.
         int m_PendingStopSends;
         const int k_StopResendCount = 4;
-        // How long the camera keeps holding still after a duel with a foe *player* stops being the
-        // current pick. Covers the soft-lock briefly handing the target to a passing NPC.
-        const float k_DuelCameraHoldSeconds = 2f;
-        float m_DuelCameraHoldUntil;
         Camera m_MainCamera;
 
         // ── Continuous auto-target (aim-based "line of fire" lock) ───────────────
@@ -150,14 +146,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
         // where you face. Both start at 0 so the initial mode stays Pointer.
         float m_LastPointerInputTime;
         float m_LastMovementInputTime;
-
-        // Same idea, one level coarser, for who turns the camera: a scheme with a manual camera
-        // turns it itself, one without gets CameraAutoRotate swinging it. Whichever family of
-        // devices was used last wins, so a PC player with a pad plugged in gets whichever one they
-        // actually have in their hands. Both start at 0 so the seed CameraAutoRotateToggle takes
-        // from the present devices holds until the player touches something.
-        float m_LastManualCameraSchemeTime;
-        float m_LastGamepadTime;
 
         public event Action<Vector3> ClientMoveEvent;
 
@@ -326,22 +314,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             moveInput = Vector2.ClampMagnitude(moveInput + MobileMovementJoystick.MovementInput, 1f);
             bool moving = moveInput.sqrMagnitude > 0.01f;
 
-            if (ShouldSuspendCameraAutoRotate())
-            {
-                CameraAutoRotate.Suspend();
-            }
-
-            // The camera auto-rotate follows where we intend to walk, not the character's forward
-            // (which actions keep overwriting). See CameraAutoRotate.
             Vector3 moveDir = moving ? CameraRelativeMove(moveInput) : Vector3.zero;
-            if (moving)
-            {
-                CameraAutoRotate.ReportMoveIntent(moveDir);
-            }
-            else
-            {
-                CameraAutoRotate.ClearMoveIntent();
-            }
 
             if (moving)
             {
@@ -587,7 +560,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
         void Update()
         {
             UpdateAimMode();
-            UpdateCameraControlScheme();
             UpdateAutoTarget();
 
             // Safety net: never let a charge-up input (Tank's Shield Aura, Archer's charged shot)
@@ -609,12 +581,11 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 // Left click: only selects the character to attack. Click-to-move was removed
                 // on purpose — movement is WASD / stick / on-screen joystick — so aiming and
                 // firing no longer fight with a walk-to-cursor command. On touch we ignore the
-                // press while the movement joystick, the zoom bar or the auto-rotate toggle is
-                // engaged, so starting to walk, to zoom or to flip the toggle doesn't also select a
-                // random target. (Those widgets carry no GraphicRaycaster, so the EventSystem check
-                // above doesn't see them.)
+                // press while the movement joystick or the zoom bar is engaged, so starting to walk
+                // or to zoom doesn't also select a random target. (Those widgets carry no
+                // GraphicRaycaster, so the EventSystem check above doesn't see them.)
                 if (m_TargetAction.action.WasPressedThisFrame() && !MobileMovementJoystick.IsActive &&
-                    !MobileZoomBar.IsActive && !CameraAutoRotateToggle.IsActive)
+                    !MobileZoomBar.IsActive)
                 {
                     m_ManualTargetUntil = Time.time + k_ManualTargetHoldSeconds;
                     m_ManualTargetGraceUntil = Time.time + k_ManualTargetGraceSeconds;
@@ -623,59 +594,17 @@ namespace Unity.BossRoom.Gameplay.UserInput
             }
         }
 
-        // Situations where swinging the camera to follow the walk costs more than it gives.
-        bool ShouldSuspendCameraAutoRotate()
-        {
-            // With mouse aim the reticle *is* the cursor raycast to the ground (see
-            // GetAimDirection), so sweeping the camera under a motionless cursor would silently
-            // re-aim and hand the auto-target a different victim. Note this also means a PC player
-            // who touches the mouse turns the feature off for themselves and a keyboard-only one
-            // keeps it, which is roughly the behaviour we'd have hard-coded per platform anyway.
-            if (m_AimMode == AimMode.Pointer)
-            {
-                return true;
-            }
-
-            // PvP comes first: while the target is another player, the camera holds still, and it
-            // keeps holding for a moment after the pick is lost. The soft-lock re-evaluates ~6x/sec
-            // and a passing imp can steal the pick mid-duel; without the tail the camera would start
-            // swinging in the middle of the fight and then stop again once the rival is re-acquired.
-            if (m_ServerCharacter.TargetId != 0 && m_TargetServerCharacter != null && !m_TargetServerCharacter.IsNpc)
-            {
-                m_DuelCameraHoldUntil = Time.time + k_DuelCameraHoldSeconds;
-            }
-
-            if (Time.time < m_DuelCameraHoldUntil)
-            {
-                return true;
-            }
-
-            // A deliberate left-click pick also means "I'm fighting this one", even if it's an NPC.
-            // Note the NPC soft-lock on its own is not enough: it grabs any imp inside a 14 m / 80°
-            // cone, so gating on "has a target at all" would leave the camera frozen through most of
-            // the map — exactly where the feature is meant to help.
-            if (m_ServerCharacter.TargetId != 0 && Time.time < m_ManualTargetUntil)
-            {
-                return true;
-            }
-
-            return false;
-        }
-
         // Converts a 2D move input (WASD/stick) into a world-space direction on the
         // ground plane, relative to the camera so "up" always means "away from camera".
         Vector3 CameraRelativeMove(Vector2 input)
         {
             Vector3 forward;
 
-            // Straight from the camera's orbit yaw, with the auto-rotation's own contribution taken
-            // back out (see CameraAutoRotate.BasisYaw). Two reasons not to use the camera transform
-            // here: the camera is turning *because* of this very input, so leaving that rotation in
-            // would make a held sideways input redefine "sideways" every frame and curve the walk
-            // into a circle; and the transform lags the orbit while the camera moves, because the
-            // orbital follow damps its position — a lagging basis drifts and snaps back under the
-            // player's thumb.
-            float basisYaw = CameraAutoRotate.BasisYaw;
+            // Straight from the camera's orbit yaw (see CameraOrbitYaw), not from the camera
+            // transform: the orbital follow damps its position, so while the player is swinging the
+            // camera the transform lags the orbit and a basis built from it drifts and snaps back
+            // under their thumb.
+            float basisYaw = CameraOrbitYaw.Yaw;
             if (!float.IsNaN(basisYaw))
             {
                 forward = Quaternion.AngleAxis(basisYaw, Vector3.up) * Vector3.forward;
@@ -740,75 +669,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
             // keep the current mode, so nothing flickers when the player is idle.
             if (m_LastPointerInputTime > m_LastMovementInputTime) m_AimMode = AimMode.Pointer;
             else if (m_LastMovementInputTime > m_LastPointerInputTime) m_AimMode = AimMode.Movement;
-        }
-
-        /// <summary>
-        /// Decides who is in charge of the camera's yaw, by the same most-recent-device latch as
-        /// <see cref="UpdateAimMode"/>:
-        /// <list type="bullet">
-        /// <item><b>keyboard+mouse</b> — nobody turns it on its own. The player does it with a
-        /// middle-mouse drag (<see cref="MouseCameraOrbit"/>) and zooms with the wheel, so a camera
-        /// that also wandered by itself would be fighting them.</item>
-        /// <item><b>touch</b> — same as keyboard+mouse. The player drags on the right half of the
-        /// screen (<see cref="TouchCameraOrbit"/>) and zooms with the bar.</item>
-        /// <item><b>gamepad</b> — <see cref="CameraAutoRotate"/> swings it to follow the walk. The
-        /// only scheme left with no spare input for a camera of its own.</item>
-        /// </list>
-        /// <para>Touch used to be grouped with the gamepad, and that is what made walking sideways
-        /// come out as walking forward: the auto-rotation has to freeze the movement basis while it
-        /// turns (see the class docs on <see cref="CameraAutoRotate"/>), so the stick stops matching
-        /// the screen, and the mismatch accumulates. Now that touch has a manual camera the trade is
-        /// no longer worth making, and it is gated off here rather than defaulted off in
-        /// <c>ClientPrefs</c> — a saved preference from an earlier build would have kept the old
-        /// behaviour alive, and a scheme with its own camera should never be asking the question.</para>
-        /// Note this deliberately keys off the device family rather than
-        /// <see cref="m_AimMode"/>: a keyboard-only PC player never trips the pointer latch, but
-        /// they do have a wheel to press, so the camera is theirs to turn too.
-        /// </summary>
-        void UpdateCameraControlScheme()
-        {
-            float now = Time.unscaledTime;
-
-            var mouse = Mouse.current;
-            bool mouseActive = mouse != null &&
-                (mouse.delta.ReadValue().sqrMagnitude > 0.5f
-                 || mouse.leftButton.isPressed
-                 || mouse.rightButton.isPressed
-                 || mouse.middleButton.isPressed
-                 || mouse.scroll.ReadValue().sqrMagnitude > 0.01f);
-
-            // Any key, not just WASD: the point is which device is in their hands, and reaching for
-            // a hotkey says that just as well as walking does.
-            var keyboard = Keyboard.current;
-            bool keyboardActive = keyboard != null && keyboard.anyKey.isPressed;
-
-            bool touchActive = (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.isPressed)
-                || MobileMovementJoystick.IsActive;
-
-            if (mouseActive || keyboardActive || touchActive)
-            {
-                m_LastManualCameraSchemeTime = now;
-            }
-
-            var gamepad = Gamepad.current;
-            bool padActive = gamepad != null &&
-                (gamepad.leftStick.ReadValue().sqrMagnitude > 0.04f
-                 || gamepad.rightStick.ReadValue().sqrMagnitude > 0.04f
-                 || gamepad.dpad.ReadValue().sqrMagnitude > 0.04f);
-
-            if (padActive)
-            {
-                m_LastGamepadTime = now;
-            }
-
-            if (m_LastManualCameraSchemeTime > m_LastGamepadTime)
-            {
-                CameraAutoRotate.AllowedByScheme = false;
-            }
-            else if (m_LastGamepadTime > m_LastManualCameraSchemeTime)
-            {
-                CameraAutoRotate.AllowedByScheme = true;
-            }
         }
 
         // The direction the player is aiming, used as the centre of the auto-target cone.

@@ -12,19 +12,16 @@ namespace Unity.BossRoom.Gameplay.UserInput
 {
     /// <summary>
     /// Touch camera rotation: drag anywhere on the right half of the screen that isn't a character
-    /// and the camera swings around the player. The touch counterpart of <see cref="MouseCameraOrbit"/>
-    /// (middle-mouse drag on desktop), and the manual alternative to <see cref="CameraAutoRotate"/>.
+    /// and the camera swings around the player. The touch counterpart of
+    /// <see cref="MouseCameraOrbit"/> (middle-mouse drag on desktop).
     ///
-    /// <para><b>Why this exists.</b> The auto-rotation keeps the movement basis frozen for the length
-    /// of a swing so the walk stays straight, which means that while it turns, the stick stops
-    /// matching the screen — and the mismatch accumulates across swings for a player who never
-    /// releases (see the class docs on <see cref="CameraAutoRotate"/>, which spell out the trade-off).
-    /// A camera the player turns themselves has no such problem: manual rotation is deliberately left
-    /// out of <c>CameraAutoRotate.AppliedYaw</c>, so the basis follows it live and the stick stays
-    /// glued to the screen. Because this exists, touch is now gated out of the auto-rotation
-    /// altogether in <c>ClientInputSender.UpdateCameraControlScheme</c>, the same way keyboard+mouse
-    /// always was — the camera on a phone is the player's, and only the gamepad still gets a
-    /// camera that swings by itself.</para>
+    /// <para><b>The camera never moves on its own.</b> There used to be an auto-rotation that swung
+    /// it to follow the walk, and it is gone. It had to keep the movement basis frozen for the
+    /// length of a swing — otherwise the walk curved, because movement is camera-relative and a held
+    /// sideways input would keep redefining "sideways" — and a frozen basis is exactly what made
+    /// walking right come out as walking forward once the camera had turned. Manual rotation has no
+    /// such problem: the basis is read live from the orbit yaw (<c>CameraOrbitYaw</c>), so the stick
+    /// stays glued to the screen no matter where the camera is pointing.</para>
     ///
     /// <para><b>What it will not claim.</b> A press is only taken as a camera drag if it lands on
     /// nothing that matters:</para>
@@ -32,8 +29,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
     /// <item>Left half of the screen — that belongs to the movement joystick, and the split is read
     /// from <see cref="MobileMovementJoystick.MovementZoneWidthFraction"/> rather than duplicated.</item>
     /// <item>The zoom bar's grab area, asked of <see cref="MobileZoomBar.OwnsScreenPoint"/>.</item>
-    /// <item>The auto-rotate toggle, which polls at execution order -100 and so has already claimed
-    /// its press by the time this runs. (On touch it now hides itself, so this rarely fires.)</item>
     /// <item>Interactive UI — buttons, sliders, anything <see cref="Selectable"/> — so the action bar
     /// still works. Decorative graphics deliberately do not count; see
     /// <see cref="IsOverInteractiveUI"/>, which is where the first version of this went wrong.</item>
@@ -50,7 +45,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
     /// Self-bootstrapping like the other touch widgets, so it needs no scene or prefab wiring.
     /// </summary>
     // Before ClientInputSender (0) so IsActive is current when it runs, after
-    // CameraAutoRotateToggle (-100) so that button has already claimed a press on itself.
+    // nothing else polls raw touches before it.
     [DefaultExecutionOrder(-90)]
     public class TouchCameraOrbit : MonoBehaviour
     {
@@ -110,19 +105,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 return;
             }
 
-            // Unconditional, every frame, not just while dragging. The scheme latch in
-            // ClientInputSender and the seed in CameraAutoRotateToggle both already say "not on
-            // touch", and a device build swung the camera anyway with both in place — so the
-            // guarantee stops being spread across two files that have to agree and moves into the
-            // component that replaces the feature. Suspend() is the API built for this (it eases a
-            // swing out rather than stopping it dead) and, unlike writing Enabled, it neither
-            // touches the player's persisted preference nor races the bootstrap order: those run in
-            // an undefined order relative to each other, this runs every frame regardless.
-            //
-            // Trade: a gamepad paired to a phone loses the auto-rotation too. Correct as far as it
-            // goes — the touchscreen is still there, so a manual camera is still available.
-            CameraAutoRotate.Suspend();
-
             ResolveCamera();
             if (m_OrbitalFollow == null)
             {
@@ -162,7 +144,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
             }
 
             Debug.Log($"[OrbitDiag] state: yaw={m_OrbitalFollow.HorizontalAxis.Value:F1} " +
-                      $"autoAllowed={CameraAutoRotate.AllowedByScheme} autoEnabled={CameraAutoRotate.Enabled} " +
                       $"dragging={IsActive} activeTouch={m_ActiveTouchId} fingersDown={pressed} " +
                       $"screen={Screen.width}x{Screen.height}");
         }
@@ -186,11 +167,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 if (MobileZoomBar.OwnsScreenPoint(pos))
                 {
                     Reject(touchId, pos, "zoom bar owns the point");
-                    continue;
-                }
-                if (CameraAutoRotateToggle.IsActive)
-                {
-                    Reject(touchId, pos, "auto-rotate toggle is active");
                     continue;
                 }
                 if (IsOverInteractiveUI(pos))
@@ -247,11 +223,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 }
 
                 IsActive = true;
-
-                // The player's own drag always wins over the automatic swing, the same way the
-                // middle-mouse drag does on desktop. Matters even with the auto-rotation left on:
-                // otherwise the two would be writing to the same axis in the same frame.
-                CameraAutoRotate.Suspend();
 
                 Rotate(deltaX);
                 return;
