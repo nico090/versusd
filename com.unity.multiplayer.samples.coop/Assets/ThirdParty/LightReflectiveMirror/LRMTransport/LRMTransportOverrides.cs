@@ -9,6 +9,26 @@ namespace LightReflectiveMirror
 {
     public partial class LightReflectiveMirrorTransport : Transport
     {
+        /// <summary>
+        /// Time.unscaledTime when the relay last told this client that the room it was in is gone
+        /// (OpCodes.ServerLeft). float.NegativeInfinity if that has never happened.
+        /// </summary>
+        /// <remarks>
+        /// The distinction matters to the connection state machine. Mirror reports every drop the
+        /// same way, so a client whose host quit was put through the full reconnect loop —
+        /// attempts, waits, "trying to reconnect" on screen — against a room that no longer
+        /// exists, and only landed on a generic "connection lost" a minute later. ServerLeft is
+        /// the relay saying so outright, and it is the only signal either side gets.
+        /// </remarks>
+        public static float LastRoomClosedTime { get; internal set; } = float.NegativeInfinity;
+
+        /// <summary>
+        /// True if the relay reported the room closed within the last few seconds — i.e. this
+        /// disconnect is the host leaving, not a link problem worth retrying.
+        /// </summary>
+        public static bool RoomClosedRecently(float withinSeconds = 10f) =>
+            Time.unscaledTime - LastRoomClosedTime <= withinSeconds;
+
         public override bool ServerActive() => _isServer;
         public override bool Available() => _connectedToRelay;
         public override void ClientConnect(Uri uri) => ClientConnect(uri.Host);

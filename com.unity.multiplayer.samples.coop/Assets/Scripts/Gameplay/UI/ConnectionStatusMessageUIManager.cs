@@ -44,29 +44,29 @@ namespace Unity.BossRoom.Gameplay.UI
                 case ConnectStatus.UserRequestedDisconnect:
                     break;
                 case ConnectStatus.ServerFull:
-                    PopupManager.ShowPopupPanel("Connection Failed", "The Host is full and cannot accept any additional connections.");
+                    PopupManager.ShowPopupPanel("No se pudo conectar", "La sala está llena y no acepta más jugadores.");
                     break;
                 case ConnectStatus.Success:
                     break;
                 case ConnectStatus.LoggedInAgain:
-                    PopupManager.ShowPopupPanel("Connection Failed", "You have logged in elsewhere using the same account. If you still want to connect, select a different profile by using the 'Change Profile' button.");
+                    PopupManager.ShowPopupPanel("No se pudo conectar", "Iniciaste sesión en otro lado con la misma cuenta. Si querés conectarte igual, elegí otro perfil con el botón 'Cambiar perfil'.");
                     break;
                 case ConnectStatus.IncompatibleBuildType:
-                    PopupManager.ShowPopupPanel("Connection Failed", "Server and client builds are not compatible. You cannot connect a release build to a development build or an in-editor session.");
+                    PopupManager.ShowPopupPanel("No se pudo conectar", "Las versiones del servidor y del cliente no son compatibles. Una build de release no se puede conectar a una de desarrollo ni al Editor.");
                     break;
                 case ConnectStatus.GenericDisconnect:
-                    PopupManager.ShowPopupPanel("Disconnected From Host", "The connection to the host was lost.");
+                    PopupManager.ShowPopupPanel("Se cortó la conexión", "Se perdió la conexión con la partida.");
                     break;
                 case ConnectStatus.HostEndedSession:
-                    PopupManager.ShowPopupPanel("Disconnected From Host", "The host has ended the game session.");
+                    PopupManager.ShowPopupPanel("Se terminó la partida", "El anfitrión salió y la sala se cerró. Podés crear una nueva o unirte a otra desde el menú.");
                     break;
                 case ConnectStatus.Reconnecting:
                     break;
                 case ConnectStatus.StartHostFailed:
-                    PopupManager.ShowPopupPanel("Connection Failed", "Starting host failed.");
+                    PopupManager.ShowPopupPanel("No se pudo crear la sala", "No se pudo iniciar la partida como anfitrión.");
                     break;
                 case ConnectStatus.StartClientFailed:
-                    PopupManager.ShowPopupPanel("Connection Failed", "Starting client failed.");
+                    PopupManager.ShowPopupPanel("No se pudo conectar", "No se pudo iniciar la conexión. Revisá la dirección o probá de nuevo.");
                     break;
                 default:
                     Debug.LogWarning($"New ConnectStatus {status} has been added, but no connect message defined for it.");

@@ -48,6 +48,18 @@ namespace Unity.BossRoom.Gameplay.UI
 
         ServerPostGameState m_PostGameState;
 
+        /// <summary>
+        /// The replicated results object. Resolved on its own rather than only through
+        /// <see cref="ServerPostGameState"/>, because that one is deliberately not there to be
+        /// found on a client: it disables itself when NetworkServer is not active, and a disabled
+        /// component is not returned by FindAnyObjectByType. Whenever injection had not supplied
+        /// it — which is the ordinary case for someone who did not host — the lookup came back
+        /// null, the subscription never happened, and the results card stayed empty for the whole
+        /// screen. NetworkPostGame, by contrast, is an ordinary NetworkBehaviour that spawns on
+        /// every client, and it is where the scoreboard actually lives.
+        /// </summary>
+        NetworkPostGame m_NetworkPostGame;
+
         /// <summary>Headline built at runtime when the prefab win/lose texts are not wired.</summary>
         TextMeshProUGUI m_RuntimeHeadline;
 
@@ -102,16 +114,23 @@ namespace Unity.BossRoom.Gameplay.UI
             if (m_PostGameState == null)
             {
                 // Injection is the normal route; this is the net for when it has not run.
-                m_PostGameState = FindAnyObjectByType<ServerPostGameState>();
+                // Include disabled components: on a client this one has switched itself off.
+                m_PostGameState = FindAnyObjectByType<ServerPostGameState>(FindObjectsInactive.Include);
             }
 
-            var postGame = m_PostGameState != null ? m_PostGameState.NetworkPostGame : null;
-            if (postGame == null)
+            if (m_NetworkPostGame == null)
+            {
+                m_NetworkPostGame = m_PostGameState != null && m_PostGameState.NetworkPostGame != null
+                    ? m_PostGameState.NetworkPostGame
+                    : FindAnyObjectByType<NetworkPostGame>();
+            }
+
+            if (m_NetworkPostGame == null)
             {
                 return;
             }
 
-            postGame.FinalScoreboard.Callback += OnScoreboardChanged;
+            m_NetworkPostGame.FinalScoreboard.Callback += OnScoreboardChanged;
             m_Subscribed = true;
 
             RefreshAll();
@@ -128,8 +147,8 @@ namespace Unity.BossRoom.Gameplay.UI
                 m_RuntimeCanvas = null;
             }
 
-            if (!m_Subscribed || m_PostGameState?.NetworkPostGame == null) return;
-            m_PostGameState.NetworkPostGame.FinalScoreboard.Callback -= OnScoreboardChanged;
+            if (!m_Subscribed || m_NetworkPostGame == null) return;
+            m_NetworkPostGame.FinalScoreboard.Callback -= OnScoreboardChanged;
             m_Subscribed = false;
         }
 
@@ -147,7 +166,7 @@ namespace Unity.BossRoom.Gameplay.UI
 
         List<ScoreEntry> GetSortedScoreboard()
         {
-            var scoreboard = m_PostGameState?.NetworkPostGame?.FinalScoreboard;
+            var scoreboard = m_NetworkPostGame != null ? m_NetworkPostGame.FinalScoreboard : null;
             if (scoreboard == null) return new List<ScoreEntry>();
 
             var sorted = new List<ScoreEntry>(scoreboard.Count);
@@ -480,12 +499,33 @@ namespace Unity.BossRoom.Gameplay.UI
 
         public void OnPlayAgainClicked()
         {
-            m_PostGameState.PlayAgain();
+            // Host-only button, but the state object is looked up the same forgiving way as the
+            // scoreboard rather than assumed: a null here would have been an exception thrown out
+            // of a UI click, which leaves the player on a screen whose buttons no longer respond.
+            var state = ResolvePostGameState();
+            if (state != null)
+            {
+                state.PlayAgain();
+            }
         }
 
         public void OnMainMenuClicked()
         {
-            m_PostGameState.GoToMainMenu();
+            var state = ResolvePostGameState();
+            if (state != null)
+            {
+                state.GoToMainMenu();
+            }
+        }
+
+        ServerPostGameState ResolvePostGameState()
+        {
+            if (m_PostGameState == null)
+            {
+                m_PostGameState = FindAnyObjectByType<ServerPostGameState>(FindObjectsInactive.Include);
+            }
+
+            return m_PostGameState;
         }
     }
 }

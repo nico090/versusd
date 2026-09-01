@@ -46,6 +46,15 @@ namespace Unity.BossRoom.ConnectionManagement
 
         public override void OnClientDisconnect(ulong _)
         {
+            // The room can close while we are mid-retry — the host quit a moment after the link
+            // wobbled. Stop burning attempts on a room that no longer exists.
+            if (LightReflectiveMirror.LightReflectiveMirrorTransport.RoomClosedRecently())
+            {
+                m_ConnectStatusPublisher.Publish(ConnectStatus.HostEndedSession);
+                m_ConnectionManager.ChangeState(m_ConnectionManager.m_Offline);
+                return;
+            }
+
             if (m_NbAttempts < m_ConnectionManager.NbReconnectAttempts)
             {
                 m_ReconnectCoroutine = m_ConnectionManager.StartCoroutine(ReconnectCoroutine());

@@ -1,4 +1,4 @@
-using kcp2k;
+﻿using kcp2k;
 using Mirror;
 using Mirror.SimpleWeb;
 using System;
@@ -204,6 +204,10 @@ namespace LightReflectiveMirror
                         if (_isClient)
                         {
                             _isClient = false;
+                            // Record it before raising the disconnect: the state machine reads this
+                            // inside OnClientDisconnected to tell "the host left" apart from "the
+                            // link died", and only the first of those is worth not retrying.
+                            LastRoomClosedTime = Time.unscaledTime;
                             OnClientDisconnected?.Invoke();
                         }
                         break;

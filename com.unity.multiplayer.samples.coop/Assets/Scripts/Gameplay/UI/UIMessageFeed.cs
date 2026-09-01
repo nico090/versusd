@@ -63,7 +63,7 @@ namespace Unity.BossRoom.Gameplay.UI
             switch (eventMessage.ConnectStatus)
             {
                 case ConnectStatus.Success:
-                    DisplayMessage($"{eventMessage.PlayerName} has joined the game!");
+                    DisplayMessage($"¡{eventMessage.PlayerName} entró a la partida!");
                     break;
                 case ConnectStatus.ServerFull:
                 case ConnectStatus.LoggedInAgain:
@@ -71,7 +71,7 @@ namespace Unity.BossRoom.Gameplay.UI
                 case ConnectStatus.GenericDisconnect:
                 case ConnectStatus.IncompatibleBuildType:
                 case ConnectStatus.HostEndedSession:
-                    DisplayMessage($"{eventMessage.PlayerName} has left the game!");
+                    DisplayMessage($"{eventMessage.PlayerName} salió de la partida.");
                     break;
             }
         }
