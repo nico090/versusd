@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.BossRoom.Infrastructure;
 using Unity.BossRoom.MasterServer;
 using Unity.BossRoom.Utils;
 using Mirror;
@@ -211,6 +212,12 @@ namespace Unity.BossRoom.ConnectionManagement
             // RegisterClientMessages() already ran (it uses `=`), so += here is safe.
             NetworkClient.OnConnectedEvent += OnClientConnected;
             NetworkClient.OnDisconnectedEvent += OnClientDisconnected;
+
+            // Mirror clears the whole client message handler table in NetworkClient.Shutdown(),
+            // which it runs on every disconnect. The NetworkedMessageChannels are built once at
+            // startup and live for the process, so without this they stopped listening after the
+            // first connection ended — and an unhandled message id makes Mirror disconnect.
+            NetworkedMessageChannelRegistry.RegisterClientHandlers();
         }
 
         public void OnMirrorClientStopped()

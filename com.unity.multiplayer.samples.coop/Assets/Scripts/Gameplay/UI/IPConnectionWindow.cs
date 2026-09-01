@@ -42,8 +42,21 @@ namespace Unity.BossRoom.Gameplay.UI
 
         void OnConnectStatusMessage(ConnectStatus connectStatus)
         {
+            // A status can land while the menu scene is being torn down: joining starts loading
+            // the next scene, and the relay reporting the room gone arrives a frame or two later.
+            // Destruction order within a scene is not guaranteed, so this handler can still run
+            // after the window's own CanvasGroup has been destroyed.
+            if (m_CanvasGroup == null)
+            {
+                return;
+            }
+
             CancelConnectionWindow();
-            m_IPUIMediator.DisableSignInSpinner();
+
+            if (m_IPUIMediator != null)
+            {
+                m_IPUIMediator.DisableSignInSpinner();
+            }
         }
 
         void Show()

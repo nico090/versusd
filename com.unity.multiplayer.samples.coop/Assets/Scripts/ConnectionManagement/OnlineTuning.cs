@@ -78,10 +78,12 @@ namespace Unity.BossRoom.ConnectionManagement
         /// handover or a few seconds in the background and still be perfectly fine afterwards.
         ///
         /// IMPORTANT: this only buys the client half the fix. The relay applies its own timeout to
-        /// the same link, and it defaults to 10000 as well — so until the VPS runs the relay with
-        /// KCP_CONNECTION_TIMEOUT set to match this value, the relay still evicts the peer at 10s
-        /// and the longer client-side timeout just means the client notices later. Set the env var
-        /// on the relay service and the two agree.
+        /// the same link and the shorter of the two is the one that actually fires, so it has to
+        /// agree: master-server/docker-compose.yml and relay-server/Dockerfile both pass
+        /// KCP_CONNECTION_TIMEOUT=20000. That only holds on the VPS once the relay has been
+        /// recreated with those values — a container still running the old 10s evicts the host
+        /// first, and evicting a host closes its room, which reaches every client as
+        /// OpCodes.ServerLeft.
         /// </remarks>
         public const int KcpTimeoutMs = 20000;
 

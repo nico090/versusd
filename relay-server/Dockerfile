@@ -35,7 +35,12 @@ ENV KCP_FAST_RESEND="2"
 ENV KCP_CONGESTION_WINDOW="false"
 ENV KCP_SEND_WINDOW_SIZE="4096"
 ENV KCP_RECEIVE_WINDOW_SIZE="4096"
-ENV KCP_CONNECTION_TIMEOUT="10000"
+# Matches OnlineTuning.KcpTimeoutMs on the Unity side. Both ends of a link apply their own
+# timeout and the shorter one wins, so a relay left at LRM's 10000 default evicts the host
+# 10s before the client would give up — and evicting a host closes its room for everybody.
+# master-server/docker-compose.yml passes the same value; this is the fallback for a plain
+# docker run.
+ENV KCP_CONNECTION_TIMEOUT="20000"
 
 EXPOSE 7777/udp
 EXPOSE 7776/udp

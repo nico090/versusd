@@ -80,6 +80,13 @@ namespace Unity.Multiplayer.Samples.Utilities
             if (!isOwned || LoadingProgressManager.Instance == null)
                 return;
 
+            // A drop during the scene load leaves this object alive and still owned for a few
+            // frames while the loading screen finishes. Sending then is an error per frame from
+            // Mirror ("Command ... called without an active client"), which buries the log line
+            // that explains the drop.
+            if (!NetworkClient.active)
+                return;
+
             float local = LoadingProgressManager.Instance.LocalProgress;
             if (!Mathf.Approximately(local, m_LastSent))
             {

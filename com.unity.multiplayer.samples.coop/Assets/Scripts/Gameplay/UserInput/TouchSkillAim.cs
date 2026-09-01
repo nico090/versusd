@@ -64,6 +64,10 @@ namespace Unity.BossRoom.Gameplay.UserInput
         float m_Throw;
         float m_GraceUntil;
 
+        // Which finger this gesture belongs to. -1 means "no touch was identified", which is the
+        // Editor-with-a-mouse case. See TryGetActivePointer for why tracking it matters.
+        int m_TouchId = -1;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
         {
@@ -110,6 +114,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 : Vector2.zero;
             s_Instance.m_Holding = true;
             s_Instance.m_Throw = 0f;
+            s_Instance.m_TouchId = FindTouchNearest(s_Instance.m_ButtonCenter);
 
             // Not aiming until the finger has actually travelled: a plain tap must stay a tap.
             IsAiming = false;
@@ -131,6 +136,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             m_Holding = false;
             m_ButtonRect = null;
             m_Throw = 0f;
+            m_TouchId = -1;
             m_GraceUntil = IsAiming ? Time.unscaledTime + k_ReleaseGraceSeconds : 0f;
         }
 
@@ -140,6 +146,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             m_Holding = false;
             m_ButtonRect = null;
             m_Throw = 0f;
+            m_TouchId = -1;
             m_GraceUntil = 0f;
             IsAiming = false;
             WorldDirection = Vector3.zero;
@@ -199,22 +206,36 @@ namespace Unity.BossRoom.Gameplay.UserInput
         }
 
         /// <summary>
-        /// The screen position of whichever pointer is currently down. Prefers a real touch and
-        /// falls back to the mouse, so this still behaves in the Editor with Device Simulator off.
+        /// The screen position of the finger that pressed the skill button. Falls back to the
+        /// mouse, so this still behaves in the Editor with Device Simulator off.
         /// </summary>
-        static bool TryGetActivePointer(out Vector2 position)
+        /// <remarks>
+        /// It has to be *that* finger, not just any pressed one. Playing on a phone means the
+        /// other thumb is usually parked on the movement joystick, and that touch is the one
+        /// enumerated first. Following it measured the drag from the skill button across to the
+        /// joystick — a large offset, well past the dead zone — so simply tapping to attack while
+        /// running registered as a full deliberate aim, pointing from the right side of the screen
+        /// to the left. The shot went out roughly opposite to the way the player was running,
+        /// exactly when they were moving, and let go of the aim as soon as they stopped.
+        /// </remarks>
+        bool TryGetActivePointer(out Vector2 position)
         {
             var touchscreen = Touchscreen.current;
-            if (touchscreen != null)
+            if (touchscreen != null && m_TouchId >= 0)
             {
                 foreach (var touch in touchscreen.touches)
                 {
-                    if (touch.press.isPressed)
+                    if (touch.touchId.ReadValue() == m_TouchId && touch.press.isPressed)
                     {
                         position = touch.position.ReadValue();
                         return true;
                     }
                 }
+
+                // The finger this gesture belongs to is gone. Do not fall back to another one:
+                // that is the joystick thumb, and following it is the bug described above.
+                position = default;
+                return false;
             }
 
             var mouse = Mouse.current;
@@ -226,6 +247,40 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
             position = default;
             return false;
+        }
+
+        /// <summary>
+        /// The id of the pressed touch closest to <paramref name="center"/>, or -1 if there is no
+        /// touchscreen or nothing is down. Called the moment the button reports its press, so the
+        /// finger that caused it is the nearest one to the button by a wide margin.
+        /// </summary>
+        static int FindTouchNearest(Vector2 center)
+        {
+            var touchscreen = Touchscreen.current;
+            if (touchscreen == null)
+            {
+                return -1;
+            }
+
+            int best = -1;
+            float bestDistance = float.MaxValue;
+
+            foreach (var touch in touchscreen.touches)
+            {
+                if (!touch.press.isPressed)
+                {
+                    continue;
+                }
+
+                float distance = Vector2.Distance(touch.position.ReadValue(), center);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    best = touch.touchId.ReadValue();
+                }
+            }
+
+            return best;
         }
 
         /// <summary>

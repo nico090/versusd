@@ -39,7 +39,11 @@ namespace Unity.BossRoom.Gameplay.UI
         /// <summary>Seconds between overlay samples. Fast enough to see a spike, slow enough to read.</summary>
         const float k_SampleInterval = 0.5f;
 
-        const int k_MaxCapturedLines = 8;
+        /// <summary>
+        /// How many captured lines to keep. Deep enough that a burst of registration warnings
+        /// during a scene load cannot push the line that explains the drop out of the window.
+        /// </summary>
+        const int k_MaxCapturedLines = 16;
 
         /// <summary>
         /// Substrings that mark a log line as worth keeping. Deliberately broad — a missed line is
@@ -49,6 +53,22 @@ namespace Unity.BossRoom.Gameplay.UI
         {
             "[Mirror]", "[LRM]", "[Relay]", "[OnlineTuning]", "Kcp", "kcp",
             "isconnect", "imed out", "Could not spawn", "assetId", "dead_link", "relay",
+            // Mirror rejects a message it cannot read by logging one of these as a *warning* and
+            // then disconnecting. The error that follows ("failed to unpack and invoke message")
+            // says only that something was rejected; these say what, and without them a drop of
+            // this kind is indistinguishable from a timeout.
+            "Unknown message id", "Invalid message header", "failed to unpack",
+            "caused an Exception", "without an active client",
+        };
+
+        /// <summary>
+        /// Lines that match a marker but are never the reason for anything. Registering the spawn
+        /// list logs one per prefab, which is enough to fill the whole capture window during the
+        /// scene load — precisely when the interesting line arrives.
+        /// </summary>
+        static readonly string[] k_NoiseLogMarkers =
+        {
+            "Replacing existing prefab",
         };
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -89,6 +109,14 @@ namespace Unity.BossRoom.Gameplay.UI
         {
             // Never log from in here — Debug.Log would re-enter this callback.
             bool interesting = type == LogType.Error || type == LogType.Exception || type == LogType.Assert;
+
+            foreach (var noise in k_NoiseLogMarkers)
+            {
+                if (condition.Contains(noise, StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
 
             if (!interesting)
             {
