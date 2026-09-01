@@ -4,7 +4,9 @@
     "references": [
         "Mirror",
         "Unity.BossRoom.Gameplay",
-        "Unity.BossRoom.Mirror"
+        "Unity.BossRoom.Mirror",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Core.Runtime"
     ],
     "includePlatforms": [
         "Editor"

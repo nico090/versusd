@@ -69,10 +69,20 @@ namespace Unity.BossRoom.Gameplay.GameState
 
             for (int i = 0; i < scoreboard.Count; i++)
             {
+                // Bots are excluded from the ranked report entirely. They hold real session data
+                // and therefore a real player id, so without this check they were submitted as
+                // players — padding everyone's match history with opponents who do not exist and,
+                // when a bot finished first, recording a bot as the winner.
+                if (scoreboard[i].IsBot) continue;
+
                 var pid = SessionManager<SessionPlayerData>.Instance.GetPlayerId(scoreboard[i].ClientId);
                 if (string.IsNullOrEmpty(pid)) continue;
+
+                // The winner is the first entry that survives the filter, not entry zero: the
+                // table is already sorted, so the best-placed real player is the one to credit
+                // whether or not a bot outscored them.
+                winnerId ??= pid;
                 playerIds.Add(pid);
-                if (i == 0) winnerId = pid;
             }
 
             if (playerIds.Count > 0)

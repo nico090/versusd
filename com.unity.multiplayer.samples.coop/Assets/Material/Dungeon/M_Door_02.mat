@@ -144,7 +144,7 @@ Material:
     - _ZWriteControl: 0
     m_Colors:
     - _BaseColor: {r: 0, g: 0, b: 0, a: 1}
-    - _Color: {r: 9.082411, g: 0.427967, b: 6.79992, a: 1}
+    - _Color: {r: 0.106991686, g: 2.2706027, b: 0.11623873, a: 1}
     - _EmissionColor: {r: 9.082411, g: 0.427967, b: 6.79992, a: 1}
     - _MainTextureTilingOffset: {r: 1, g: 1, b: 0, a: 0}
     - _SpecColor: {r: 0.19999987, g: 0.19999987, b: 0.19999987, a: 0}

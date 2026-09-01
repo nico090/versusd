@@ -15,6 +15,9 @@ namespace Unity.BossRoom.Gameplay.Actions
     {
         bool m_Launched;
 
+        /// <summary>Extra time the throwing facing is held past the release.</summary>
+        const float k_FacingLockTailSeconds = 0.1f;
+
         public override bool OnStart(ServerCharacter serverCharacter)
         {
             // snap to face the direction we're firing
@@ -34,8 +37,12 @@ namespace Unity.BossRoom.Gameplay.Actions
                         lookAtPosition = initialTarget.transform.position;
                     }
 
-                    // snap to face our target! This is the direction we'll attack in
-                    serverCharacter.physicsWrapper.Transform.LookAt(lookAtPosition);
+                    // Snap to face our target — this is the direction we'll attack in — and hold
+                    // it. The projectile isn't thrown until ExecTimeSeconds later and Throw() reads
+                    // the facing at that moment, so without the lock a thrower that keeps walking
+                    // lobs the bomb along its walk instead of at the target.
+                    Vector3 toTarget = lookAtPosition - serverCharacter.physicsWrapper.Transform.position;
+                    serverCharacter.Movement.LockFacing(toTarget, Config.ExecTimeSeconds + k_FacingLockTailSeconds);
                 }
             }
 

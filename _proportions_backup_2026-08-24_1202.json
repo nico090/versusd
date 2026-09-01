@@ -1,0 +1,767 @@
+{
+    "Created": "2026-08-24 12:02:32",
+    "Entries": [
+        {
+            "PrefabPath": "Assets/Prefabs/CharGFX/CharacterGraphics/PlayerGraphics_Archer_Boy.prefab",
+            "ObjectPaths": [
+                "Bone_Hips",
+                "Bone_Hips/Bone_LeftUpLeg",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg/Bone_LeftFoot",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg/Bone_LeftFoot/Bone_Toe",
+                "Bone_Hips/Bone_RightUpLeg",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg/Bone_RightFoot",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg/Bone_RightFoot/Bone_Toe 1",
+                "Bone_Hips/Bone_Spine",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base/Bone_Cloak_Mid",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base/Bone_Cloak_Mid/Bone_Cloak_End",
+                "Bone_Hips/Bone_Spine/Bone_Head",
+                "Bone_Hips/Bone_Spine/Bone_Head/Bone_Helmet",
+                "Bone_Hips/Bone_Spine/Bone_LeftArm",
+                "Bone_Hips/Bone_Spine/Bone_LeftArm/Bone_LeftForeArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm/Bone_RightForeArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm/Bone_RightForeArm/Bone_RightHand/Archer_weapon_Boy"
+            ],
+            "Scales": [
+                {
+                    "x": 0.009999999776482582,
+                    "y": 0.009999999776482582,
+                    "z": 0.009999999776482582
+                },
+                {
+                    "x": 1.0292439460754395,
+                    "y": 0.7281776070594788,
+                    "z": 1.216646671295166
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0203667879104615,
+                    "y": 0.7957870364189148,
+                    "z": 1.0203667879104615
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0499999523162842,
+                    "y": 0.8220844268798828,
+                    "z": 0.8624740242958069
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.500825047492981,
+                    "y": 0.500825047492981,
+                    "z": 0.500825047492981
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.5,
+                    "y": 0.699999988079071,
+                    "z": 0.699999988079071
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.5,
+                    "y": 0.699999988079071,
+                    "z": 0.699999988079071
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.699999988079071,
+                    "y": 0.6000000238418579,
+                    "z": 0.6000000238418579
+                }
+            ]
+        },
+        {
+            "PrefabPath": "Assets/Prefabs/CharGFX/CharacterGraphics/PlayerGraphics_Mage_Boy.prefab",
+            "ObjectPaths": [
+                "Bone_Hips",
+                "Bone_Hips/Bone_LeftUpLeg",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg/Bone_LeftFoot",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg/Bone_LeftFoot/Bone_Toe",
+                "Bone_Hips/Bone_RightUpLeg",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg/Bone_RightFoot",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg/Bone_RightFoot/Bone_Toe 1",
+                "Bone_Hips/Bone_Spine",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base/Bone_Cloak_Mid",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base/Bone_Cloak_Mid/Bone_Cloak_End",
+                "Bone_Hips/Bone_Spine/Bone_Head",
+                "Bone_Hips/Bone_Spine/Bone_Head/Bone_Helmet",
+                "Bone_Hips/Bone_Spine/Bone_LeftArm",
+                "Bone_Hips/Bone_Spine/Bone_LeftArm/Bone_LeftForeArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm/Bone_RightForeArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm/Bone_RightForeArm/Bone_RightHand/Mage_Weapon_Boy"
+            ],
+            "Scales": [
+                {
+                    "x": 0.009999999776482582,
+                    "y": 0.009999999776482582,
+                    "z": 0.009999999776482582
+                },
+                {
+                    "x": 0.7496020793914795,
+                    "y": 0.6432042121887207,
+                    "z": 0.7496020793914795
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.7496020793914795,
+                    "y": 0.6432042121887207,
+                    "z": 0.7496020793914795
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.79620760679245,
+                    "y": 0.79620760679245,
+                    "z": 0.79620760679245
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.6723999977111816,
+                    "y": 1.0,
+                    "z": 0.6723999977111816
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.6723999977111816,
+                    "y": 1.0,
+                    "z": 0.6723999977111816
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.699999988079071,
+                    "y": 0.699999988079071,
+                    "z": 0.699999988079071
+                }
+            ]
+        },
+        {
+            "PrefabPath": "Assets/Prefabs/CharGFX/CharacterGraphics/PlayerGraphics_Rogue_Boy.prefab",
+            "ObjectPaths": [
+                "Bone_Hips",
+                "Bone_Hips/Bone_LeftUpLeg",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg/Bone_LeftFoot",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg/Bone_LeftFoot/Bone_Toe",
+                "Bone_Hips/Bone_RightUpLeg",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg/Bone_RightFoot",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg/Bone_RightFoot/Bone_Toe 1",
+                "Bone_Hips/Bone_Spine",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base/Bone_Cloak_Mid",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base/Bone_Cloak_Mid/Bone_Cloak_End",
+                "Bone_Hips/Bone_Spine/Bone_Head",
+                "Bone_Hips/Bone_Spine/Bone_Head/Bone_Helmet",
+                "Bone_Hips/Bone_Spine/Bone_LeftArm",
+                "Bone_Hips/Bone_Spine/Bone_LeftArm/Bone_LeftForeArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm/Bone_RightForeArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm/Bone_RightForeArm/Bone_RightHand/Rogue_Weapon_Boy"
+            ],
+            "Scales": [
+                {
+                    "x": 0.009999999776482582,
+                    "y": 0.009999999776482582,
+                    "z": 0.009999999776482582
+                },
+                {
+                    "x": 0.9024999737739563,
+                    "y": 1.1024998426437379,
+                    "z": 0.9024999737739563
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.9024999737739563,
+                    "y": 1.1024998426437379,
+                    "z": 0.9024999737739563
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.5453217625617981,
+                    "y": 0.5453217625617981,
+                    "z": 0.5453217625617981
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.5,
+                    "y": 0.5,
+                    "z": 0.5
+                },
+                {
+                    "x": 1.3310000896453858,
+                    "y": 1.8532843589782715,
+                    "z": 1.3310000896453858
+                },
+                {
+                    "x": 0.5,
+                    "y": 0.5,
+                    "z": 0.6000000238418579
+                },
+                {
+                    "x": 1.3310000896453858,
+                    "y": 1.8532843589782715,
+                    "z": 1.3310000896453858
+                },
+                {
+                    "x": 144.05621337890626,
+                    "y": 113.44303131103516,
+                    "z": 115.88319396972656
+                }
+            ]
+        },
+        {
+            "PrefabPath": "Assets/Prefabs/CharGFX/CharacterGraphics/PlayerGraphics_Archer_Girl.prefab",
+            "ObjectPaths": [
+                "Bone_Hips",
+                "Bone_Hips/Bone_LeftUpLeg",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg/Bone_LeftFoot",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg/Bone_LeftFoot/Bone_Toe",
+                "Bone_Hips/Bone_RightUpLeg",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg/Bone_RightFoot",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg/Bone_RightFoot/Bone_Toe 1",
+                "Bone_Hips/Bone_Spine",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base/Bone_Cloak_Mid",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base/Bone_Cloak_Mid/Bone_Cloak_End",
+                "Bone_Hips/Bone_Spine/Bone_Head",
+                "Bone_Hips/Bone_Spine/Bone_Head/Bone_Helmet",
+                "Bone_Hips/Bone_Spine/Bone_LeftArm",
+                "Bone_Hips/Bone_Spine/Bone_LeftArm/Bone_LeftForeArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm/Bone_RightForeArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm/Bone_RightForeArm/Bone_RightHand/Archer_weapon_Girl"
+            ],
+            "Scales": [
+                {
+                    "x": 0.009999999776482582,
+                    "y": 0.009999999776482582,
+                    "z": 0.009999999776482582
+                },
+                {
+                    "x": 1.0203667879104615,
+                    "y": 1.5537383556365967,
+                    "z": 0.4124424457550049
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0203667879104615,
+                    "y": 1.3501744270324708,
+                    "z": 1.0203667879104615
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 0.9370200037956238,
+                    "z": 0.8831700086593628
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.500825047492981,
+                    "y": 0.500825047492981,
+                    "z": 0.500825047492981
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.699999988079071,
+                    "y": 0.699999988079071,
+                    "z": 0.699999988079071
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.699999988079071,
+                    "y": 0.699999988079071,
+                    "z": 0.699999988079071
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                }
+            ]
+        },
+        {
+            "PrefabPath": "Assets/Prefabs/CharGFX/CharacterGraphics/PlayerGraphics_Mage_Girl.prefab",
+            "ObjectPaths": [
+                "Bone_Hips",
+                "Bone_Hips/Bone_LeftUpLeg",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg/Bone_LeftFoot",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg/Bone_LeftFoot/Bone_Toe",
+                "Bone_Hips/Bone_RightUpLeg",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg/Bone_RightFoot",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg/Bone_RightFoot/Bone_Toe 1",
+                "Bone_Hips/Bone_Spine",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base/Bone_Cloak_Mid",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base/Bone_Cloak_Mid/Bone_Cloak_End",
+                "Bone_Hips/Bone_Spine/Bone_Head",
+                "Bone_Hips/Bone_Spine/Bone_Head/Bone_Helmet",
+                "Bone_Hips/Bone_Spine/Bone_LeftArm",
+                "Bone_Hips/Bone_Spine/Bone_LeftArm/Bone_LeftForeArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm/Bone_RightForeArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm/Bone_RightForeArm/Bone_RightHand/Mage_Weapon_Girl"
+            ],
+            "Scales": [
+                {
+                    "x": 0.009999999776482582,
+                    "y": 0.009999999776482582,
+                    "z": 0.009999999776482582
+                },
+                {
+                    "x": 0.7496020793914795,
+                    "y": 0.6432042121887207,
+                    "z": 0.7496020793914795
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.7496020793914795,
+                    "y": 0.6432042121887207,
+                    "z": 0.7496020793914795
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.149999976158142,
+                    "y": 0.8399999737739563,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.79620760679245,
+                    "y": 0.79620760679245,
+                    "z": 0.79620760679245
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.6723999977111816,
+                    "y": 1.0,
+                    "z": 0.6723999977111816
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.6723999977111816,
+                    "y": 1.0,
+                    "z": 0.6723999977111816
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.699999988079071,
+                    "y": 0.699999988079071,
+                    "z": 0.699999988079071
+                }
+            ]
+        },
+        {
+            "PrefabPath": "Assets/Prefabs/CharGFX/CharacterGraphics/PlayerGraphics_Rogue_Girl.prefab",
+            "ObjectPaths": [
+                "Bone_Hips",
+                "Bone_Hips/Bone_LeftUpLeg",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg/Bone_LeftFoot",
+                "Bone_Hips/Bone_LeftUpLeg/Bone_LeftLeg/Bone_LeftFoot/Bone_Toe",
+                "Bone_Hips/Bone_RightUpLeg",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg/Bone_RightFoot",
+                "Bone_Hips/Bone_RightUpLeg/Bone_RightLeg/Bone_RightFoot/Bone_Toe 1",
+                "Bone_Hips/Bone_Spine",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base/Bone_Cloak_Mid",
+                "Bone_Hips/Bone_Spine/Bone_Cloak_Base/Bone_Cloak_Mid/Bone_Cloak_End",
+                "Bone_Hips/Bone_Spine/Bone_Head",
+                "Bone_Hips/Bone_Spine/Bone_Head/Bone_Helmet",
+                "Bone_Hips/Bone_Spine/Bone_LeftArm",
+                "Bone_Hips/Bone_Spine/Bone_LeftArm/Bone_LeftForeArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm/Bone_RightForeArm",
+                "Bone_Hips/Bone_Spine/Bone_RightArm/Bone_RightForeArm/Bone_RightHand/Rogue_Weapon_Girl"
+            ],
+            "Scales": [
+                {
+                    "x": 0.009999999776482582,
+                    "y": 0.009999999776482582,
+                    "z": 0.009999999776482582
+                },
+                {
+                    "x": 0.9024999737739563,
+                    "y": 1.1024998426437379,
+                    "z": 0.9024999737739563
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.9024999737739563,
+                    "y": 1.1024998426437379,
+                    "z": 0.9024999737739563
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.5453217625617981,
+                    "y": 0.5453217625617981,
+                    "z": 0.5453217625617981
+                },
+                {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                },
+                {
+                    "x": 0.5,
+                    "y": 0.5,
+                    "z": 0.5
+                },
+                {
+                    "x": 1.3310000896453858,
+                    "y": 1.8532843589782715,
+                    "z": 1.3310000896453858
+                },
+                {
+                    "x": 0.5,
+                    "y": 0.5,
+                    "z": 0.5
+                },
+                {
+                    "x": 1.3310000896453858,
+                    "y": 1.8532843589782715,
+                    "z": 1.3310000896453858
+                },
+                {
+                    "x": 1.1550999879837037,
+                    "y": 1.1057000160217286,
+                    "z": 1.4083000421524048
+                }
+            ]
+        }
+    ]
+}

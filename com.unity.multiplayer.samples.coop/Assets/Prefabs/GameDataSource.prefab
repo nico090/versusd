@@ -24,13 +24,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1133988469759348351}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &370034730102636685
 MonoBehaviour:
@@ -52,6 +52,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 131bd29e682b4e34aa5c8b1f8ba4a48d, type: 2}
   - {fileID: 11400000, guid: 358012a7531bbb644bc269602d1ddaed, type: 2}
   - {fileID: 11400000, guid: 686e97a1c3abaf243a72ce1c5a9d7a9f, type: 2}
+  m_IsPvPMode: 1
   m_GeneralChaseActionPrototype: {fileID: 11400000, guid: 3c13a5f47e13e41b4be18a014a2d1d45, type: 2}
   m_GeneralTargetActionPrototype: {fileID: 11400000, guid: b0f6feb0a453d429ca0a3dccbacfc1cb, type: 2}
   m_Emote1ActionPrototype: {fileID: 11400000, guid: 0722b4e7d47094125bcd1c363b75d27e, type: 2}
@@ -79,3 +80,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: f2f90bb7cc89145bbae7f30157b82807, type: 2}
   - {fileID: 11400000, guid: 28b3e443c27ad416fb099d20816a302a, type: 2}
   - {fileID: 11400000, guid: 493feb878ef9648feb46afce19716b47, type: 2}
+  - {fileID: 11400000, guid: 6d9f3d155f373244fa96ef998b4c1002, type: 2}
+  - {fileID: 11400000, guid: 635d824560c67ef409a59d6373431e3c, type: 2}
+  - {fileID: 11400000, guid: ffefe05ea4ae0124783f4564c8341e5b, type: 2}

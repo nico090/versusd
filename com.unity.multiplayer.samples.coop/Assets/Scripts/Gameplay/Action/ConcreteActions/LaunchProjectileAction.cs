@@ -1,4 +1,5 @@
 using System;
+using Unity.BossRoom.Gameplay.Configuration;
 using Unity.BossRoom.Gameplay.GameplayObjects;
 using Unity.BossRoom.Gameplay.GameplayObjects.Character;
 using Unity.BossRoom.Infrastructure;
@@ -15,10 +16,23 @@ namespace Unity.BossRoom.Gameplay.Actions
     {
         private bool m_Launched = false;
 
+        /// <summary>
+        /// Extra time the facing stays planted after the projectile leaves, so the snap doesn't
+        /// visibly unwind on the same frame the arrow appears.
+        /// </summary>
+        const float k_FacingLockTailSeconds = 0.1f;
+
         public override bool OnStart(ServerCharacter serverCharacter)
         {
-            //snap to face the direction we're firing, and then broadcast the animation, which we do immediately.
-            serverCharacter.physicsWrapper.Transform.forward = Data.Direction;
+            // Snap to face the direction we're firing — and *hold* it. The projectile doesn't
+            // leave until Config.ExecTimeSeconds later, and ServerCharacterMovement turns the
+            // character to face its movement on every physics tick in between, so a player who
+            // fires while walking used to have the shot leave along their walk direction. The
+            // lock is what makes the shot honour the aim. See ServerCharacterMovement.LockFacing.
+            if (Data.Direction.sqrMagnitude > 0.0001f)
+            {
+                serverCharacter.Movement.LockFacing(Data.Direction, Config.ExecTimeSeconds + k_FacingLockTailSeconds);
+            }
 
             serverCharacter.serverAnimationHandler.SetTrigger(Config.Anim);
             serverCharacter.clientCharacter.RpcPlayAction(Data);
@@ -70,13 +84,29 @@ namespace Unity.BossRoom.Gameplay.Actions
 
                 var projectileInfo = GetProjectileInfo();
 
+                // PvP balance pass: the Archer's charged shot hits for less than its asset says.
+                // Scaled on the local copy of the struct, right before it is handed to the
+                // projectile, so the shared ActionConfig asset is never mutated.
+                projectileInfo.Damage = HeroBalance.ScaleDamage(parent, Config.Logic, projectileInfo.Damage);
+
                 var go = NetworkObjectPool.Singleton.GetNetworkObject(projectileInfo.ProjectilePrefab, projectileInfo.ProjectilePrefab.transform.position, projectileInfo.ProjectilePrefab.transform.rotation);
-                // point the projectile the same way we're facing
-                go.transform.forward = parent.physicsWrapper.Transform.forward;
+
+                // Fire along the direction the player aimed, not along whatever the character
+                // transform happens to be pointing at right now. The facing lock in OnStart should
+                // already have kept the two identical, but reading the aim directly means a shot
+                // can never silently inherit a walk direction even if something else (a knockback,
+                // a charge) moved us in between. For a charged shot Data.Direction is empty — it
+                // was requested before the player had aimed — so this picks up the live aim
+                // instead, which is the whole reason ServerCharacter streams it.
+                Vector3 launchDirection = parent.ResolveAimDirection(Data.Direction);
+
+                var launchRotation = Quaternion.LookRotation(launchDirection);
+                go.transform.forward = launchDirection;
 
                 //this way, you just need to "place" the arrow by moving it in the prefab, and that will control
-                //where it appears next to the player.
-                go.transform.position = parent.physicsWrapper.Transform.localToWorldMatrix.MultiplyPoint(go.transform.position);
+                //where it appears next to the player. Built from the launch direction rather than the
+                //character's localToWorldMatrix so the muzzle offset stays glued to the shot.
+                go.transform.position = parent.physicsWrapper.Transform.position + launchRotation * go.transform.position;
 
                 go.GetComponent<PhysicsProjectile>().Initialize((ulong)(uint)parent.GetComponent<NetworkIdentity>().netId, projectileInfo, projectileInfo.ProjectilePrefab);
 

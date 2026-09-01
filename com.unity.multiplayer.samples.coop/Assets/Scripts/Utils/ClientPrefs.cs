@@ -14,6 +14,7 @@ namespace Unity.BossRoom.Utils
         const string k_ClientGUIDKey = "client_guid";
         const string k_AvailableProfilesKey = "AvailableProfiles";
         const string k_ControlsHintExpandedKey = "ControlsHintExpanded";
+        const string k_TutorialSeenKey = "TutorialSeen";
 
         const float k_DefaultMasterVolume = 0.5f;
         const float k_DefaultMusicVolume = 0.8f;
@@ -59,6 +60,22 @@ namespace Unity.BossRoom.Utils
 
         /// <summary>Whether the bottom-left controls card is unfolded (it starts unfolded, then the
         /// player folds it away with H once they know the bindings).</summary>
+        /// <summary>
+        /// Whether the player has been shown the how-to-play wizard.
+        /// </summary>
+        /// <remarks>
+        /// Per install rather than per account: the wizard teaches the controls and the rules, and
+        /// those do not change when somebody signs in as someone else. Tying it to a profile would
+        /// mean a second account on the same machine sitting through it again.
+        /// </remarks>
+        public static bool GetTutorialSeen() => PlayerPrefs.GetInt(k_TutorialSeenKey, 0) != 0;
+
+        public static void SetTutorialSeen(bool seen)
+        {
+            PlayerPrefs.SetInt(k_TutorialSeenKey, seen ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+
         public static bool GetControlsHintExpanded()
         {
             return PlayerPrefs.GetInt(k_ControlsHintExpandedKey, 1) != 0;

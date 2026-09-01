@@ -23,8 +23,8 @@ namespace Unity.BossRoom.Gameplay.UI
         [Inject] MasterServerFacade m_MasterServerFacade;
         [Inject] ConnectionManager m_ConnectionManager;
 
-        // Shown briefly when something notable happens (P2P fallback, errors).
-        Text m_ToastLabel;
+        // Shown briefly when something notable happens (relay fallback, errors).
+        TextMeshProUGUI m_ToastLabel;
 
         void Start()
         {
@@ -33,14 +33,15 @@ namespace Unity.BossRoom.Gameplay.UI
 
             // Relabel the tab buttons using the UITinter sibling text, so the
             // player understands "Create Room" vs "Find & Join" at a glance.
-            RelabelTab(m_CreateToggleHighlight, "Create Room", "You will host the match");
-            RelabelTab(m_JoinToggleHighlight, "Find & Join", "Browse public rooms");
+            RelabelTab(m_CreateToggleHighlight, "Crear sala", "Vas a hospedar la partida");
+            RelabelTab(m_JoinToggleHighlight, "Buscar sala", "Explora las salas públicas");
 
             // Build the toast overlay (hidden by default).
             BuildToast();
 
-            // Open the "Find & Join" tab by default so public rooms are visible immediately.
-            ToggleJoinSessionUI();
+            // Create is the default tab: the player got here to start a match, and an empty room
+            // list is a worse first impression than the form that fills it.
+            ToggleCreateSessionUI();
         }
 
         public void Show()
@@ -61,12 +62,32 @@ namespace Unity.BossRoom.Gameplay.UI
         {
             m_SessionJoiningUI?.Show();
             m_SessionCreationUI?.Hide();
+            PaintTabs(joinActive: true);
         }
 
         public void ToggleCreateSessionUI()
         {
             m_SessionJoiningUI?.Hide();
             m_SessionCreationUI?.Show();
+            PaintTabs(joinActive: false);
+        }
+
+        /// <summary>
+        /// Lights the open tab and dims the other one.
+        /// </summary>
+        /// <remarks>
+        /// The four tinters were serialized on this component but never driven, so the tab strip
+        /// only changed colour if the prefab's own button events happened to do it — which left
+        /// the tab that opens on load looking unselected. Colour index 1 is the active state and 0
+        /// is transparent; the "blocker" is the strip that closes the seam between the open tab
+        /// and the panel below it.
+        /// </remarks>
+        void PaintTabs(bool joinActive)
+        {
+            m_JoinToggleHighlight?.SetToColor(joinActive ? 1 : 0);
+            m_JoinToggleTabBlocker?.SetToColor(joinActive ? 1 : 0);
+            m_CreateToggleHighlight?.SetToColor(joinActive ? 0 : 1);
+            m_CreateToggleTabBlocker?.SetToColor(joinActive ? 0 : 1);
         }
 
         public void RegenerateName()
@@ -104,7 +125,7 @@ namespace Unity.BossRoom.Gameplay.UI
             {
                 // Not a capacity problem (e.g. duplicate room name, 409) — don't
                 // fall back to P2P; tell the player so they can pick a new name.
-                ShowToast("Could not create room.\nThat name may already be taken — try another.", 5f);
+                ShowToast("No se pudo crear la sala.\nEse nombre puede estar en uso: prueba con otro.", 5f);
                 return;
             }
 
@@ -141,7 +162,7 @@ namespace Unity.BossRoom.Gameplay.UI
         void ShowFallbackNotice()
         {
             Debug.Log("[SessionUI] No dedicated servers available — falling back to relay host.");
-            ShowToast("No dedicated servers available.\nHosting via the relay instead.", 5f);
+            ShowToast("No hay servidores dedicados libres.\nSe hospeda por relay.", 5f);
         }
 
         // ── Tab relabelling ───────────────────────────────────────────────────
@@ -163,35 +184,42 @@ namespace Unity.BossRoom.Gameplay.UI
 
         // ── Toast / banner ────────────────────────────────────────────────────
 
+        /// <summary>
+        /// The banner that explains what just happened — a fallback to the relay, a name already
+        /// taken. Built as a warning strip pinned under the top edge: wide enough to read at a
+        /// glance, and out of the way of the panel underneath it.
+        /// </summary>
         void BuildToast()
         {
             if (m_CanvasGroup == null) return;
-            var go = new GameObject("__Toast");
-            go.transform.SetParent(m_CanvasGroup.transform, false);
-            var img = go.AddComponent<UnityEngine.UI.Image>();
-            img.color = new Color(0.7f, 0.45f, 0.05f, 0.92f);
-            var r = go.GetComponent<RectTransform>();
-            r.anchorMin = new Vector2(0f, 1f);
-            r.anchorMax = new Vector2(1f, 1f);
-            r.pivot = new Vector2(0.5f, 1f);
-            r.anchoredPosition = new Vector2(0f, -2f);
-            r.sizeDelta = new Vector2(0f, 48f);
 
-            var tGO = new GameObject("ToastText");
-            tGO.transform.SetParent(go.transform, false);
-            m_ToastLabel = tGO.AddComponent<Text>();
-            m_ToastLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            m_ToastLabel.fontSize = 13;
-            m_ToastLabel.color = Color.white;
-            m_ToastLabel.alignment = TextAnchor.MiddleCenter;
-            var tr = tGO.GetComponent<RectTransform>();
-            tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one;
-            tr.offsetMin = new Vector2(12f, 2f); tr.offsetMax = new Vector2(-12f, -2f);
+            var strip = UIKit.Row(m_CanvasGroup.transform, "__Toast", UIKit.Unit * 1.5f, UIKit.Unit * 1.5f,
+                TextAnchor.MiddleCenter);
+            strip.anchorMin = new Vector2(0f, 1f);
+            strip.anchorMax = new Vector2(1f, 1f);
+            strip.pivot = new Vector2(0.5f, 1f);
+            strip.anchoredPosition = new Vector2(0f, -UIKit.Unit);
+            strip.sizeDelta = new Vector2(-UIKit.Unit * 4f, 76f);
 
-            go.SetActive(false);
+            var plate = strip.gameObject.AddComponent<UnityEngine.UI.Image>();
+            plate.sprite = ToonMenuSkin.InputFillSprite;
+            plate.type = UnityEngine.UI.Image.Type.Sliced;
+            plate.pixelsPerUnitMultiplier = 2f;
+            plate.color = new Color(0.16f, 0.11f, 0.03f, 0.96f);
+            plate.raycastTarget = false;
+
+            UIKit.Outline(strip.gameObject, new Color(UIKit.Gold.r, UIKit.Gold.g, UIKit.Gold.b, 0.7f));
+            UIKit.Icon(strip, UIIcons.Icon.Warning, UIKit.Gold, 30f);
+
+            m_ToastLabel = UIKit.Text(strip, string.Empty, UIKit.TextStyle.Body, TextAlignmentOptions.Left,
+                HudSkin.TextPrimary);
+
+            UIKit.Mark(strip.gameObject);
+            strip.gameObject.SetActive(false);
         }
 
-        void ShowToast(string message, float duration)
+        /// <summary>Shows a message on the session panel's status strip.</summary>
+        public void ShowToast(string message, float duration)
         {
             if (m_ToastLabel == null) return;
             m_ToastLabel.text = message;
@@ -225,7 +253,7 @@ namespace Unity.BossRoom.Gameplay.UI
             if (!await WaitForRelayReadyAsync(8f))
             {
                 SetSpinner(false);
-                ShowToast("Could not reach the relay server.\nCheck your connection and try again.", 5f);
+                ShowToast("No se pudo contactar al relay.\nRevisa tu conexión e inténtalo de nuevo.", 5f);
                 return;
             }
 
@@ -237,7 +265,7 @@ namespace Unity.BossRoom.Gameplay.UI
             {
                 SetSpinner(false);
                 m_ConnectionManager.RequestShutdown();
-                ShowToast("The relay didn't assign a room id.\nPlease try again.", 5f);
+                ShowToast("El relay no asignó un id de sala.\nInténtalo de nuevo.", 5f);
                 return;
             }
 
@@ -247,7 +275,7 @@ namespace Unity.BossRoom.Gameplay.UI
             {
                 // Name clash or master unreachable — tear down the half-started host.
                 m_ConnectionManager.RequestShutdown();
-                ShowToast("Could not create room.\nThat name may already be taken — try another.", 5f);
+                ShowToast("No se pudo crear la sala.\nEse nombre puede estar en uso: prueba con otro.", 5f);
             }
         }
 
@@ -295,7 +323,7 @@ namespace Unity.BossRoom.Gameplay.UI
                 m_ConnectionManager.EnsureRelayConnected();
                 if (!await WaitForRelayReadyAsync(8f))
                 {
-                    ShowToast("Could not reach the relay server.\nCheck your connection and try again.", 5f);
+                    ShowToast("No se pudo contactar al relay.\nRevisa tu conexión e inténtalo de nuevo.", 5f);
                     return;
                 }
                 m_ConnectionManager.StartClientRelay(m_MasterServerFacade.Username, join.relay_server_id, join.join_token, join.session_id);

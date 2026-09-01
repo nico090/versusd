@@ -22,7 +22,7 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: Torso_Mage_Girl
   m_Shader: {fileID: -6465566751694194690, guid: 317f1cf71d2fc30458456d44f39763d2, type: 3}
-  m_Parent: {fileID: 2100000, guid: 59aeea6b3cff1b745b6c534ac1bc2bc6, type: 2}
+  m_Parent: {fileID: 2100000, guid: 0f476f11c4f10f643aa8298e49212108, type: 2}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
   m_InvalidKeywords:
@@ -43,16 +43,19 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 470c397495cee2942aac21d747cfff43, type: 3}
+        m_Texture: {fileID: 2800000, guid: 23cbb8ee7779285419c0b154e731c40e, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Glossiness: 1.73
+    - _Glossiness: 175.8
     - _Metallic: 0.778
-    - _RimAmount: 0.366
+    - _RimAmount: 0.48
+    - _RimThreshold: 0
     m_Colors:
-    - _RimColor: {r: 3.9999995, g: 3.9999995, b: 3.9999995, a: 1}
-    - _SpecularColor: {r: 3.9999995, g: 3.9999995, b: 3.9999995, a: 1}
+    - _AmbientColor: {r: 1, g: 1, b: 1, a: 1}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _RimColor: {r: 0, g: 0.00002193451, b: 1, a: 1}
+    - _SpecularColor: {r: 6.7261677, g: 6.7261677, b: 6.7261677, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

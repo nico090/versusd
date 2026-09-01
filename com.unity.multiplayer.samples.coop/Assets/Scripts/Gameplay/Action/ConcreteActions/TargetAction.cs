@@ -28,8 +28,6 @@ namespace Unity.BossRoom.Gameplay.Actions
 
             serverCharacter.TargetId = TargetId;
 
-            FaceTarget(serverCharacter, TargetId);
-
             return true;
         }
 
@@ -43,15 +41,14 @@ namespace Unity.BossRoom.Gameplay.Actions
 
         public override bool OnUpdate(ServerCharacter clientCharacter)
         {
-            bool isValid = ActionUtils.IsValidTarget(TargetId);
-
-            if (clientCharacter.ActionPlayer.RunningActionCount == 1 && !clientCharacter.Movement.IsMoving() && isValid)
-            {
-                //we're the only action running, and we're not moving, so let's swivel to face our target, just to be cool!
-                FaceTarget(clientCharacter, TargetId);
-            }
-
-            return isValid;
+            // Note this no longer swivels the character to face its target, which it used to do
+            // whenever it was the only action running and we were standing still. Targeting is now
+            // derived from where the player is aiming rather than chosen by a click, so turning the
+            // body to the target meant the character quietly faced away from the aim — and since
+            // the reticle updates several times a second, an idle player was spun around by every
+            // imp that wandered into their cone. The body follows movement; an attack plants it on
+            // the aim for the length of the swing (ServerCharacterMovement.LockFacing).
+            return ActionUtils.IsValidTarget(TargetId);
         }
 
         public override void Cancel(ServerCharacter serverCharacter)
@@ -63,36 +60,6 @@ namespace Unity.BossRoom.Gameplay.Actions
         }
 
         private ulong TargetId { get { return Data.TargetIds[0]; } }
-
-        /// <summary>
-        /// Only call this after validating the target via IsValidTarget.
-        /// </summary>
-        /// <param name="targetId"></param>
-        private void FaceTarget(ServerCharacter parent, ulong targetId)
-        {
-            var targetObject = NetworkIdentityUtils.FindByNetId((uint)targetId);
-            if (targetObject != null)
-            {
-                Vector3 targetObjectPosition;
-
-                if (targetObject.TryGetComponent(out ServerCharacter serverCharacter))
-                {
-                    targetObjectPosition = serverCharacter.physicsWrapper.Transform.position;
-                }
-                else
-                {
-                    targetObjectPosition = targetObject.transform.position;
-                }
-
-                Vector3 diff = targetObjectPosition - parent.physicsWrapper.Transform.position;
-
-                diff.y = 0;
-                if (diff != Vector3.zero)
-                {
-                    parent.physicsWrapper.Transform.forward = diff;
-                }
-            }
-        }
     }
 }
 

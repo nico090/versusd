@@ -1,0 +1,19 @@
+fileFormatVersion: 2
+guid: a84970925e3b5d54dbfd56fbdf608064
+labels:
+- Metal
+- Plates
+- Basic
+timeCreated: 1429689608
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 35362
+  packageName: Yughues Free N
+  packageVersion: 1.1
+  assetPath: Assets/YughuesFreeNormalMaps/Materials/M_YFNMap_CornerHexa.mat
+  uploadId: 750798

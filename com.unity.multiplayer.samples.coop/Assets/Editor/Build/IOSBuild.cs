@@ -131,7 +131,7 @@ namespace VersusD.EditorTools
             PlayerSettings.allowedAutorotateToLandscapeRight = true;
             PlayerSettings.useAnimatedAutorotation = true;
 
-            // El master server se habla por HTTP plano (http://IP:8000), asi que hay que
+            // El master server se habla por HTTP plano (http://IP:8001), asi que hay que
             // dejar pasar HTTP inseguro tambien del lado de UnityWebRequest. La excepcion
             // equivalente de App Transport Security la agrega IOSPostProcess.
             PlayerSettings.insecureHttpOption = InsecureHttpOption.AlwaysAllowed;

@@ -53,6 +53,11 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         // normalized world-space direction used while in DirectMoving state
         private Vector3 m_DirectMoveDirection;
 
+        // While a facing lock is held, PerformMovement stops turning the character to face
+        // its movement. See LockFacing.
+        private Vector3 m_FacingLockDirection;
+        private float m_FacingLockUntil;
+
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         public bool TeleportModeActivated { get; set; }
 
@@ -107,6 +112,9 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         public void StartKnockback(Vector3 knocker, float speed, float duration)
         {
             m_NavPath.Clear();
+            // Being hit outranks an attack's facing lock: staying planted on your own aim while
+            // being flung backwards reads as the character being stuck.
+            m_FacingLockUntil = 0f;
             m_MovementState = MovementState.Knockback;
             m_KnockbackVector = transform.position - knocker;
             m_ForcedSpeed = speed;
@@ -146,6 +154,45 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             m_NavPath.Clear();
             m_MovementState = MovementState.DirectMoving;
             m_DirectMoveDirection = worldDirection.normalized;
+        }
+
+        /// <summary>
+        /// Plants the character facing a world direction for <paramref name="seconds"/>, overriding
+        /// the usual "turn to face where you're walking".
+        ///
+        /// <para>This exists because an attack's aim and its projectile are separated in time. An
+        /// action snaps the character to face <c>Data.Direction</c> in OnStart, but the projectile
+        /// isn't spawned until <c>Config.ExecTimeSeconds</c> later — 0.15s for the Archer, 0.25s for
+        /// the Mage, a full second for the charged shot. <see cref="PerformMovement"/> runs at 50Hz
+        /// in between and used to overwrite that rotation on every tick, so a player who was walking
+        /// while they fired had their shot leave along the walk direction instead of the one they
+        /// aimed. Locking the facing across the exec window is what makes "the shot goes where you
+        /// aimed" actually true.</para>
+        ///
+        /// <para>Movement itself is not blocked — you still walk, you just don't pivot.</para>
+        /// </summary>
+        /// <param name="worldDirection">Direction to face. Flattened; ignored if degenerate.</param>
+        /// <param name="seconds">How long to hold it.</param>
+        public void LockFacing(Vector3 worldDirection, float seconds)
+        {
+            worldDirection.y = 0;
+            if (worldDirection.sqrMagnitude < 0.0001f)
+            {
+                return;
+            }
+
+            m_FacingLockDirection = worldDirection.normalized;
+            m_FacingLockUntil = Time.time + seconds;
+
+            // Apply at once: the caller is mid-OnStart and the shot may be resolved before the
+            // next FixedUpdate ever runs.
+            ApplyFacing(m_FacingLockDirection);
+        }
+
+        void ApplyFacing(Vector3 direction)
+        {
+            transform.rotation = Quaternion.LookRotation(direction);
+            m_Rigidbody.rotation = transform.rotation;
         }
 
         /// <summary>
@@ -276,7 +323,19 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             }
 
             m_NavMeshAgent.Move(movementVector);
-            transform.rotation = Quaternion.LookRotation(movementVector);
+
+            // Turn to face the way we're going — unless an attack has planted us facing its aim
+            // (see LockFacing). Without that exception a player who walks while firing has their
+            // shot leave along the walk direction, because the projectile spawns several physics
+            // ticks after the action aimed us.
+            if (Time.time < m_FacingLockUntil)
+            {
+                transform.rotation = Quaternion.LookRotation(m_FacingLockDirection);
+            }
+            else if (movementVector.sqrMagnitude > 0.000001f)
+            {
+                transform.rotation = Quaternion.LookRotation(movementVector);
+            }
 
             // After moving adjust the position of the dynamic rigidbody.
             m_Rigidbody.position = transform.position;
@@ -296,7 +355,24 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 #endif
             CharacterClass characterClass = GameDataSource.Instance.CharacterDataByType[m_CharLogic.CharacterType];
             Assert.IsNotNull(characterClass, $"No CharacterClass data for character type {m_CharLogic.CharacterType}");
-            return characterClass.Speed * GetClassSpeedMultiplier(m_CharLogic.CharacterType);
+
+            // Monsters are buffed on HP and damage, so they get a single fixed (slow) speed to
+            // keep them kiteable: heroes run at 4-7 m/s and must always be able to disengage.
+            if (characterClass.IsNpc)
+            {
+                return NpcBalance.MoveSpeed;
+            }
+
+            float speed = characterClass.Speed * GetClassSpeedMultiplier(m_CharLogic.CharacterType);
+
+            // The blue zone. Applied at the very end so it multiplies the class tuning rather than
+            // replacing it — a buffed Archer is still slower than a buffed Rogue.
+            if (ZoneBoons.HasSpeed((uint)m_CharLogic.netId))
+            {
+                speed *= ZoneRules.SpeedMultiplier;
+            }
+
+            return speed;
         }
 
         /// <summary>
@@ -312,12 +388,31 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
                 // top of that left them with no way to close the distance.
                 case CharacterTypeEnum.Archer:
                     return k_ArcherSpeedMultiplier;
+                case CharacterTypeEnum.Rogue:
+                    return k_RogueSpeedMultiplier;
                 default:
                     return 1f;
             }
         }
 
         private const float k_ArcherSpeedMultiplier = 0.75f;
+
+        /// <summary>
+        /// -15% on the Rogue, whose asset ships the highest Speed in the game (7) and which had
+        /// never been given a multiplier here.
+        /// </summary>
+        /// <remarks>
+        /// <para>Untouched, the effective speeds were Rogue 7.0, Mage 6.0, Archer 4.5, Tank 4.0 —
+        /// the Rogue ran 75% faster than the Tank and 56% faster than the Archer, on top of owning
+        /// both a dash and stealth. Nothing could disengage from it and nothing could catch it, so
+        /// it chose every fight in the match.</para>
+        ///
+        /// <para>At 0.85 the Rogue lands on 5.95, level with the Mage. That is deliberate: the
+        /// class keeps its mobility, but the mobility now lives in the <i>dash</i> — a resource on
+        /// a cooldown that an opponent can watch for and play around — instead of in a permanent
+        /// movement-speed lead there was no counter to.</para>
+        /// </remarks>
+        private const float k_RogueSpeedMultiplier = 0.85f;
 
         /// <summary>
         /// Determines the appropriate MovementStatus for the character. The

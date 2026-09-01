@@ -44,9 +44,32 @@ namespace Unity.Multiplayer.Samples.Utilities
 #endif
         }
 
+        /// <summary>
+        /// Prefab name of the boss.
+        /// </summary>
+        const string k_BossPrefabName = "ImpBoss";
+
+        /// <summary>
+        /// Set by the game mode when it takes over the boss spawn. In the PvPvE deathmatch the mode
+        /// decides when and where the boss appears (centre of the map, at match start, exactly
+        /// once), so the scene-placed spawner for it must stand down — otherwise the match gets two
+        /// bosses, and two chances at the 20-point final blow.
+        /// </summary>
+        /// <remarks>
+        /// A static flag rather than a reference because this component runs from its own Awake in
+        /// an additively-loaded scene, and because the game mode lives in an assembly this one
+        /// can't reference (Gameplay depends on Utilities, not the other way round).
+        /// </remarks>
+        public static bool SuppressBossSpawn;
+
         void SpawnNetworkObject()
         {
             var prefab = ResolvePrefab();
+            if (prefab != null && SuppressBossSpawn && prefab.name == k_BossPrefabName)
+            {
+                return;
+            }
+
             if (prefab == null)
             {
                 Debug.LogError($"[NetworkObjectSpawner] Could not resolve prefab for '{gameObject.name}'. " +

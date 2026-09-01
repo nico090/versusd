@@ -40,6 +40,79 @@ namespace Unity.BossRoom.Gameplay.Actions
         /// <param name="radius">The radius in meters to check.</param>
         /// <param name="results">Place an uninitialized RayCastHit[] ref in here. It will be set to the results array. </param>
         /// <returns></returns>
+        static readonly Collider[] s_ConeHits = new Collider[24];
+
+        /// <summary>
+        /// Everything damageable within <paramref name="range"/> and within
+        /// <paramref name="halfAngleDegrees"/> of the attacker's facing.
+        /// </summary>
+        /// <remarks>
+        /// <para>An overlap plus an angle test rather than a cast. The casts this replaces for
+        /// melee sweep a box or a sphere <i>straight ahead</i>, which means a swing only connects
+        /// with what is almost exactly in front — and the facing it measures from is the server's,
+        /// arriving a little late, and set by an aim that on a phone is inferred rather than
+        /// pointed. Three sources of small error stacked on a test with no tolerance, so swings
+        /// missed things the player was standing next to and looking at.</para>
+        ///
+        /// <para>A wide cone does not make melee stronger so much as it makes it <i>legible</i>:
+        /// the attack connects with what a player would say they were attacking. It still cannot
+        /// hit behind you, which is what keeps positioning meaningful.</para>
+        ///
+        /// <para>The angle is measured flat, on the ground plane. Height differences on a stepped
+        /// arena would otherwise throw the test off for reasons the player cannot see.</para>
+        /// </remarks>
+        public static int DetectFoesInCone(bool wantPcs, bool wantNpcs, Collider attacker, float range,
+            float halfAngleDegrees, out Collider[] results)
+        {
+            if (s_PCLayer == -1)
+                s_PCLayer = LayerMask.NameToLayer("PCs");
+            if (s_NpcLayer == -1)
+                s_NpcLayer = LayerMask.NameToLayer("NPCs");
+
+            int mask = 0;
+            if (wantPcs)
+                mask |= (1 << s_PCLayer);
+            if (wantNpcs)
+                mask |= (1 << s_NpcLayer);
+
+            results = s_ConeHits;
+
+            var origin = attacker.transform.position;
+            int found = Physics.OverlapSphereNonAlloc(origin, range, s_ConeHits, mask);
+
+            var forward = attacker.transform.forward;
+            forward.y = 0f;
+            if (forward.sqrMagnitude < 0.0001f)
+            {
+                // No usable facing: keep everything in range rather than silently hitting nothing.
+                return found;
+            }
+
+            forward.Normalize();
+
+            int kept = 0;
+            for (int i = 0; i < found; i++)
+            {
+                var hit = s_ConeHits[i];
+                if (hit == null)
+                {
+                    continue;
+                }
+
+                var toTarget = hit.transform.position - origin;
+                toTarget.y = 0f;
+
+                // Something standing on top of us has no direction; it is in front by any reading.
+                if (toTarget.sqrMagnitude < 0.0001f
+                    || Vector3.Angle(forward, toTarget) <= halfAngleDegrees)
+                {
+                    s_ConeHits[kept++] = hit;
+                }
+            }
+
+            return kept;
+        }
+
         public static int DetectNearbyEntitiesUseSphere(bool wantPcs, bool wantNpcs, Collider attacker, float range, float radius, out RaycastHit[] results)
         {
             var myBounds = attacker.bounds;

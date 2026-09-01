@@ -202,6 +202,11 @@ namespace Unity.BossRoom.Gameplay.GameState
             NetworkServer.OnConnectedEvent -= OnServerClientConnected;
             NetworkServer.OnDisconnectedEvent -= OnServerClientDisconnected;
             ConnectionManager.ClientApprovedForSession -= SeatNewPlayer;
+
+            // The lobby is gone; the bots' seat choices are settled and this state object is about
+            // to be destroyed, so stop driving them from it.
+            Bots.ServerBotManager.Instance?.EndCharSelect();
+
             m_ServerInitialized = false;
         }
 
@@ -227,6 +232,10 @@ namespace Unity.BossRoom.Gameplay.GameState
             // CharSelect loads async, so the host's session data is ready by now.
             foreach (var conn in NetworkServer.connections.Values)
                 SeatNewPlayer((ulong)(uint)conn.connectionId);
+
+            // Bots join here rather than at server start, because "joining" for a bot means taking
+            // a CharSelect seat — there is nowhere for one to wait before this scene exists.
+            Bots.ServerBotManager.EnsureInstance()?.BeginCharSelect(this);
         }
 
         void OnServerClientConnected(NetworkConnectionToClient conn)

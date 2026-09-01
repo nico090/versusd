@@ -134,9 +134,26 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
 
         void Awake()
         {
+            // Careful: this same graphics prefab is also instantiated bare in the character-select
+            // screen (see ClientCharSelectState.GetCharacterGraphics), where there is no
+            // ClientCharacter above us. Everything below has to survive that.
             m_ClientCharacter = GetComponentInParent<ClientCharacter>();
-            m_Animator = m_ClientCharacter.OurAnimator;
-            m_OriginalController = m_Animator.runtimeAnimatorController;
+
+            if (m_ClientCharacter != null && m_ClientCharacter.OurAnimator != null)
+            {
+                m_Animator = m_ClientCharacter.OurAnimator;
+            }
+            else if (m_Animator == null)
+            {
+                // Standalone preview (or a prefab whose Animator wasn't wired in the inspector):
+                // fall back to whatever Animator lives on us or below us.
+                m_Animator = GetComponentInChildren<Animator>();
+            }
+
+            if (m_Animator != null)
+            {
+                m_OriginalController = m_Animator.runtimeAnimatorController;
+            }
         }
 
         private void OnDisable()

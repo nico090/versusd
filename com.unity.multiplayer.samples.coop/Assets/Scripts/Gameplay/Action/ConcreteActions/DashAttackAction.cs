@@ -1,4 +1,5 @@
 using System;
+using Unity.BossRoom.Gameplay.Configuration;
 using Unity.BossRoom.Gameplay.GameplayObjects;
 using Unity.BossRoom.Gameplay.GameplayObjects.Character;
 using UnityEngine;
@@ -103,7 +104,9 @@ namespace Unity.BossRoom.Gameplay.Actions
 
             if (foe != null)
             {
-                foe.ReceiveHitPoints(parent, -Config.Amount);
+                // PvP balance pass: the Rogue's dash hits slightly harder. It's the class's only
+                // currency — if it doesn't kill fast, the Rogue has nothing.
+                foe.ReceiveHitPoints(parent, -HeroBalance.ScaleDamage(parent, Config.Logic, Config.Amount));
             }
         }
 
@@ -111,7 +114,44 @@ namespace Unity.BossRoom.Gameplay.Actions
         {
             if (m_Dashed) { return ActionConclusion.Stop; } // we're done!
 
+            // Nothing ever set m_Dashed. The partial that did — DashAttackAction.Client.cs in the
+            // original sample — did not survive the Mirror port, so the flag was declared, reset
+            // and read but never raised, and this method answered Continue for ever. The dash's
+            // client visualisation therefore never concluded and the run loop played until
+            // something else interrupted it.
+            //
+            // Ending on the action's own duration is what the server already does, so both halves
+            // now finish on the same clock instead of the client waiting for a signal that was
+            // never coming.
+            if (TimeRunning >= Config.DurationSeconds)
+            {
+                m_Dashed = true;
+                return ActionConclusion.Stop;
+            }
+
             return ActionConclusion.Continue;
+        }
+
+        /// <summary>
+        /// Puts the run animation away on the client's own authority.
+        /// </summary>
+        /// <remarks>
+        /// The server fires Anim2 from <see cref="End"/> through the animation handler, and on a
+        /// dedicated server that trigger does not reach clients — the same gap this project
+        /// already had to work around for attack swings and life-state changes. So the one trigger
+        /// that stops the dash loop was exactly the one that could go missing. Setting it here as
+        /// well costs nothing when the server's copy does arrive: re-triggering a transition the
+        /// animator has already taken is a no-op.
+        /// </remarks>
+        public override void EndClient(ClientCharacter clientCharacter)
+        {
+            base.EndClient(clientCharacter);
+
+            if (!string.IsNullOrEmpty(Config.Anim2) && clientCharacter != null
+                && clientCharacter.OurAnimator != null)
+            {
+                clientCharacter.OurAnimator.SetTrigger(Config.Anim2);
+            }
         }
     }
 }

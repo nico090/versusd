@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Mirror;
+using Unity.BossRoom.Gameplay.Configuration;
 using Unity.BossRoom.Gameplay.GameplayObjects.Character;
 using UnityEngine;
 
@@ -103,11 +104,39 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
         {
             m_Hit = new RaycastHit[1];
             m_IsStarted = true;
+            ApplyDeathmatchCadence();
             if (m_IsSpawnerEnabled)
             {
                 StartWaveSpawning();
             }
         }
+
+        /// <summary>
+        /// Overrides the serialized wave settings with the deathmatch cadence.
+        /// </summary>
+        /// <remarks>
+        /// In co-op, spawners are a proximity-gated ambush: they wait for a player to walk in, dump
+        /// their waves and go quiet. In deathmatch the imps are a scoring resource — the "1 point"
+        /// well must never dry up, because it is what gives the player who keeps losing straight
+        /// fights something to do. So waves restart on a fixed ~35s timer and the proximity gate is
+        /// opened wide enough that it no longer decides when a room repopulates.
+        ///
+        /// Applied here in code rather than by editing every spawner in the scenes: the serialized
+        /// value in a scene always wins over a changed field default, and hand-editing dozens of
+        /// scene objects is exactly the kind of change the Editor's asset cache eats.
+        /// </remarks>
+        void ApplyDeathmatchCadence()
+        {
+            m_RestartDelay = DeathmatchRules.ImpRespawnPeriod;
+            m_ProximityDistance = Mathf.Max(m_ProximityDistance, k_DeathmatchProximityDistance);
+        }
+
+        /// <summary>
+        /// Proximity radius used in deathmatch. Large enough to cover a room and its approaches, so
+        /// imps are already there when you arrive, but still finite — a spawner in a corner of the
+        /// map nobody is anywhere near stays quiet instead of filling the match with idle NPCs.
+        /// </summary>
+        const float k_DeathmatchProximityDistance = 60f;
 
         public void SetSpawnerEnabled(bool isEnabledNow)
         {

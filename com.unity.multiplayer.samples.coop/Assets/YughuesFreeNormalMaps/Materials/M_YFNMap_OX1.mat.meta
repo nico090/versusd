@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 993f61b603682f141b90539d9b260104
+labels:
+- Metal
+- Plates
+timeCreated: 1429689611
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 35362
+  packageName: Yughues Free N
+  packageVersion: 1.1
+  assetPath: Assets/YughuesFreeNormalMaps/Materials/M_YFNMap_OX1.mat
+  uploadId: 750798

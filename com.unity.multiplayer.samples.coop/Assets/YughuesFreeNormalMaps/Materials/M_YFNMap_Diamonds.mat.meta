@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 1577a8c6541480849a70f5e8c3147b6e
+labels:
+- Metal
+- Plates
+timeCreated: 1429689612
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 35362
+  packageName: Yughues Free N
+  packageVersion: 1.1
+  assetPath: Assets/YughuesFreeNormalMaps/Materials/M_YFNMap_Diamonds.mat
+  uploadId: 750798

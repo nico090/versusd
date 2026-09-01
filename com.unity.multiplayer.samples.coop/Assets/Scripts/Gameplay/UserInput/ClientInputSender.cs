@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Unity.BossRoom.CameraUtils;
 using Unity.BossRoom.Gameplay.Actions;
 using Unity.BossRoom.Gameplay.Configuration;
@@ -22,10 +23,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
         float m_LastSentMove;
 
-        readonly RaycastHit[] k_CachedHit = new RaycastHit[4];
-
         LayerMask m_GroundLayerMask;
-        LayerMask m_ActionLayerMask;
 
         [SerializeField] ServerCharacter m_ServerCharacter;
         [SerializeField] InputActionReference m_TargetAction;
@@ -67,6 +65,9 @@ namespace Unity.BossRoom.Gameplay.UserInput
             public SkillTriggerStyle TriggerStyle;
             public ActionID RequestedActionID;
             public ulong TargetId;
+            // The mouse button that asked for this, when a mouse button did. Carried through so a
+            // charge-up skill started by a click knows which button has to come back up to end it.
+            public InputAction SourceButton;
         }
 
         readonly ActionRequest[] m_ActionRequests = new ActionRequest[5];
@@ -80,6 +81,14 @@ namespace Unity.BossRoom.Gameplay.UserInput
         // This timeout guarantees it always ends.
         float m_SkillInputStartTime;
         const float k_MaxSkillInputHoldSeconds = 8f;
+        // The mouse button that started m_CurrentSkillInput, if a mouse button started it. The
+        // keyboard has always ended a charge through its KeyboardRelease request; a click had no
+        // equivalent, so a charged skill fired with the right button (the Archer's charged shot,
+        // the Tank's shield) never got its release and sat there until the timeout above — and
+        // for those seconds every left click was swallowed by the m_CurrentSkillInput guard in
+        // Update, which is why attacking with the mouse would intermittently do nothing while the
+        // "1" key kept working.
+        InputAction m_CurrentSkillInputButton;
         // true while the last frame sent a directional (WASD/stick) move, so we know
         // to send a single "stop" when the stick is released.
         bool m_WasDirectMoving;
@@ -90,62 +99,105 @@ namespace Unity.BossRoom.Gameplay.UserInput
         const int k_StopResendCount = 4;
         Camera m_MainCamera;
 
-        // ── Continuous auto-target (aim-based "line of fire" lock) ───────────────
-        // Range of the soft-lock. Raised from the original 8m: in PvP the fight happens at
-        // ranged-weapon distances, and an 8m lock meant you simply couldn't auto-aim at the
-        // player you were shooting at.
-        const float k_AutoTargetRange = 14f;       // meters
-        // Half-cone around the aim direction. Widened from the original 45° so the soft-lock
-        // can grab foes that are off to the side / not directly faced, which combats the
-        // "combat feels stiff" complaint. Manual left-click selection (see m_ManualTargetUntil)
-        // still overrides this and can pick foes in any direction.
-        const float k_AutoTargetMaxAngle = 80f;
-        const float k_AutoTargetInterval = 0.15f;  // re-evaluate ~6x/sec
-        // After a deliberate left-click selection, don't let the continuous auto-target steal
-        // the pick for this long (as long as the chosen foe stays alive). Lets the player lock
-        // an enemy they aren't facing and keep firing at it.
-        const float k_ManualTargetHoldSeconds = 3f;
-        float m_ManualTargetUntil;
-        // Unconditional part of the hold: right after the click the server hasn't confirmed the
-        // new TargetId yet, so we can't validate the pick. For this long we honour the hold no
-        // matter what; after it, the hold only survives while the picked foe is still a valid,
-        // in-range target (see UpdateAutoTarget). Without this the lock used to stick for the
-        // full 3s onto a foe that had already died or run away.
-        const float k_ManualTargetGraceSeconds = 0.6f;
-        float m_ManualTargetGraceUntil;
-        // In PvP, other players are the point of the fight — but the map is full of imps that
-        // would otherwise win the "closest to my aim" contest and steal the lock. This many
-        // "virtual degrees" of bonus are subtracted from a player candidate's score so a foe
-        // player beats a nearby NPC unless the NPC is much better aligned.
-        const float k_PvPPlayerPriorityBonus = 40f;
-        // How strongly alignment with the aim beats proximity when scoring candidates.
-        // Higher = the foe most directly in the line of fire wins even if a closer foe
-        // sits off to the side. Score is degrees-off-aim * weight + distance-in-metres.
-        const float k_AutoTargetAngleWeight = 1.5f;
-        // Eye height for the line-of-sight check, so we test against waist/chest-high
-        // geometry instead of the floor under the characters' feet.
-        const float k_AutoTargetEyeHeight = 1f;
-        float m_LastAutoTarget;
-        // Every character contributes several colliders, so 16 overflowed easily in a crowd
-        // (and an overflow silently drops candidates — including the player you're aiming at).
-        readonly Collider[] m_AutoTargetHits = new Collider[32];
+        // ── Aiming ───────────────────────────────────────────────────────────────────────────
+        // The aim is explicit and it is the single source of truth: the mouse cursor on desktop,
+        // a drag out of the skill button on touch, the right stick on a gamepad.
+        //
+        // Two things used to sit here and are deliberately gone. First, a mode that latched to
+        // whichever device the player had touched most recently, so walking with WASD quietly
+        // switched aiming from "at the cursor" to "where the body faces" and back. Second, an
+        // autonomous 80° soft-lock that picked a foe, swung the character round to face it and
+        // painted the reticle on it — while a right-click skillshot ignored all of that and flew
+        // at the cursor anyway. The reticle said one thing and the shot did another, which is
+        // most of why aiming read as unpredictable.
+        //
+        // What is left is one narrow aim assist, resolved from the aim direction. The same call
+        // draws the reticle and nudges the shot at fire time, so what you are shown is what you
+        // get.
+
+        // How far the assist will reach for a foe. Raised from 14 to match the distances the
+        // ranged weapons actually fight at (bolts and the meteor reach ~18-20): an assist shorter
+        // than the weapon meant the two classes that most need the help fought outside it.
+        const float k_AimAssistRange = 20f;
+        // Half-angle of the assist cone. A shot only snaps onto a foe this close to the aim, so
+        // you hit essentially where you point and merely get the last couple of degrees for free.
+        // Tightened from 20: at that width the cone reached well past what reads as "pointing at
+        // him", and the assist was picking targets the player had not aimed at.
+        const float k_AimAssistMaxAngle = 12f;
+
+        // ── Mouse-only refinements ────────────────────────────────────────────────────────────
+        // A cursor is a POINT, not a bearing, and the pure-angle score wasted that information:
+        // a foe 2m away but 15 degrees off beat the foe your cursor was PARKED ON at 12m, because
+        // near things subtend huge angles. These three constants make the cursor mean what a PC
+        // player thinks it means. None of them apply to touch or gamepad aim, which really are
+        // bearings and keep the pure-angle behaviour.
+
+        // Hovering the cursor within this many metres of a foe picks that foe, full stop.
+        // Tightened from 2.5, which is wider than a character and so fired on a foe merely
+        // standing next to where the cursor actually was.
+        const float k_CursorSnapRadius = 1.5f;
+        // Beyond the snap radius, every metre between cursor and foe costs this many "virtual
+        // degrees", so among foes in the cone the one nearest the cursor wins. Raised from 2 to
+        // buy back some of the certainty the smaller snap radius gave up: the cursor now decides
+        // more of the ordering, and does it by a smooth ramp rather than a hard radius.
+        const float k_CursorDistanceWeightDegreesPerMetre = 3f;
+        // Hysteresis: a challenger must beat the current target's score by this margin to steal
+        // the lock. Without it two similar candidates trade the reticle several times a second,
+        // and every trade re-aims the next shot — the flicker IS mis-aim. Eased from 6 alongside
+        // the narrower cone: with fewer candidates qualifying at all there is less to flicker
+        // between, and 6 degrees of hysteresis inside a 12-degree cone made deliberately switching
+        // targets feel like the game was arguing with you.
+        const float k_StickyTargetBonusDegrees = 4f;
+        // How often the reticle's assist target is recomputed. Fire-time assist is always computed
+        // fresh, so this rate only affects what's drawn.
+        const float k_AimTargetInterval = 0.1f;
+        float m_LastAimTargetUpdate;
+        // The assist target this client last worked out, and the one it last told the server about.
+        // The first is what the aim line is drawn from; the second stops the reticle update being
+        // resent on every tick while the server's confirmation is still in flight.
+        ServerCharacter m_LocalAssistTarget;
+        ulong m_LastSentTargetId;
+        // In PvP other players are the point of the fight, but the map is full of imps that would
+        // otherwise win the "closest to my aim" contest. This many "virtual degrees" of bonus go to
+        // a player candidate, so a foe player beats a nearby NPC unless the NPC is much better aligned.
+        // Cut from 40, which was larger than the whole cone: any player anywhere inside it beat
+        // every NPC unconditionally, so aiming point-blank at an imp still fired at a player off to
+        // the side. At 15 the preference survives for genuinely comparable candidates and loses to
+        // an NPC the player is clearly pointing at.
+        const float k_PvPPlayerPriorityBonus = 15f;
+        // Every metre between you and a candidate costs this many "virtual degrees", so among
+        // otherwise comparable foes the near one wins. This is what makes the assist read as
+        // "hit what's in front of me" rather than "hit whatever is best aligned", which at range
+        // meant a distant foe two degrees off beat the one actually swinging at you.
+        const float k_SelfDistanceWeightDegreesPerMetre = 1.5f;
+        // Inside this radius an NPC is close enough that ignoring it is never what the player
+        // meant — it is the imp already hitting them.
+        const float k_PointBlankRange = 3.5f;
+        // ...so it gets a bonus big enough to outweigh k_PvPPlayerPriorityBonus. The player
+        // preference is the rule; a foe this close is the exception to it. Anything the cursor is
+        // actually on still beats both, because that is an explicit choice rather than a guess.
+        const float k_PointBlankBonus = 25f;
+        // Eye height for the line-of-sight check, so we test against waist/chest-high geometry
+        // instead of the floor under the characters' feet.
+        const float k_AimEyeHeight = 1f;
+        // Every character contributes several colliders, so 16 overflowed easily in a crowd (and an
+        // overflow silently drops candidates — including the player you're aiming at).
+        readonly Collider[] m_AimCandidateHits = new Collider[32];
         readonly RaycastHit[] m_LineOfFireHits = new RaycastHit[8];
-        LayerMask m_AutoTargetMask;
+        LayerMask m_AimCandidateMask;
         // Geometry that blocks line of fire. Mirrors PhysicsProjectile's blocker mask so
-        // "if a projectile would hit a wall, the auto-target won't lock through it".
+        // "if a projectile would hit a wall, the assist won't snap through it".
         LayerMask m_LineOfFireMask;
 
-        // How the player aims the auto-target cone:
-        //  - Pointer  (PC): toward the mouse cursor's ground position.
-        //  - Movement (gamepad / mobile): toward where the character is walking.
-        enum AimMode { Pointer, Movement }
-        AimMode m_AimMode = AimMode.Pointer;
-        // Timestamps of the last pointer (mouse) vs movement (WASD/stick/touch) input.
-        // Whichever happened most recently decides the aim mode, so the two schemes
-        // coexist and switch live: touch the mouse → aim at cursor; press WASD → aim
-        // where you face. Both start at 0 so the initial mode stays Pointer.
-        float m_LastPointerInputTime;
-        float m_LastMovementInputTime;
+        // Rate-limited stream of the aim direction to the server. Actions that are aimed when they
+        // are *released* rather than when they are requested — the Archer's charged shot, held for
+        // up to a second — carry no direction in their request and read this instead.
+        // See ServerCharacter.AimDirection.
+        const float k_AimSendRateSeconds = 0.1f;
+        // Don't spend a packet on the sub-degree jitter of a resting mouse.
+        const float k_AimSendMinDegrees = 2f;
+        float m_LastSentAimTime;
+        Vector3 m_LastSentAimDirection;
 
         public event Action<Vector3> ClientMoveEvent;
 
@@ -169,6 +221,28 @@ namespace Unity.BossRoom.Gameplay.UserInput
             m_MainCamera = Camera.main;
         }
 
+        /// <summary>
+        /// The local player's input sender, for UI that needs to draw the aim. Null before the
+        /// local player spawns and after it despawns.
+        /// </summary>
+        public static ClientInputSender LocalInstance { get; private set; }
+
+        /// <summary>Where the local player is aiming — the same value the skills resolve from.</summary>
+        public Vector3 CurrentAimDirection => GetAimDirection();
+
+        /// <summary>The ground point the local player is aiming at.</summary>
+        public Vector3 CurrentAimPoint => GetAimPoint();
+
+        /// <summary>
+        /// The character the aim assist would correct a shot onto, or null. This is the client's own
+        /// latest answer rather than the server-confirmed TargetId, so the drawn aim doesn't trail
+        /// the cursor by a round-trip.
+        /// </summary>
+        public ServerCharacter CurrentAssistTarget => m_LocalAssistTarget;
+
+        /// <summary>Where the shot leaves from, for drawing the aim line.</summary>
+        public Vector3 AimOrigin => m_PhysicsWrapper.Transform.position;
+
         public override void OnStartClient()
         {
             if (!isOwned)
@@ -176,6 +250,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 enabled = false;
                 return;
             }
+
+            LocalInstance = this;
 
             m_ServerCharacter.TargetIdChanged += OnTargetChanged;
             m_ServerCharacter.HeldNetworkObjectChanged += OnHeldNetworkObjectChanged;
@@ -205,8 +281,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             m_Action8.action.performed += OnAction8Performed;
 
             m_GroundLayerMask = LayerMask.GetMask("Ground");
-            m_ActionLayerMask = LayerMask.GetMask("PCs", "NPCs", "Ground");
-            m_AutoTargetMask = LayerMask.GetMask("PCs", "NPCs");
+            m_AimCandidateMask = LayerMask.GetMask("PCs", "NPCs");
             m_LineOfFireMask = LayerMask.GetMask("Default", "Environment");
 
             // Resolve the directional-movement action. Prefer the serialized reference, but
@@ -227,6 +302,11 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
         public override void OnStopClient()
         {
+            if (LocalInstance == this)
+            {
+                LocalInstance = null;
+            }
+
             if (m_ServerCharacter)
             {
                 m_ServerCharacter.TargetIdChanged -= OnTargetChanged;
@@ -269,7 +349,42 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
         void OnTargetLifeStateChanged(LifeState previousValue, LifeState newValue) => UpdateAction1();
 
-        void FinishSkill() => m_CurrentSkillInput = null;
+        /// <summary>
+        /// The frame on which a targeting input last let go, so the click that dismissed it cannot
+        /// also be read as a world click.
+        /// </summary>
+        /// <remarks>
+        /// A ground-targeted power (the Mage's meteor, and anything else carrying an ActionInput)
+        /// puts a reticle up and waits for a confirming click. That click is consumed by the
+        /// reticle's own Update, which sends the action and tears itself down — clearing
+        /// <see cref="m_CurrentSkillInput"/>. If the reticle's Update happens to run before this
+        /// component's in the same frame, the guard below is already open by the time we look, and
+        /// <c>WasPressedThisFrame</c> is still true for the very same press: the meteor goes out
+        /// AND the basic attack fires off one click. Which of the two runs first is script
+        /// execution order, so the bug comes and goes rather than failing honestly.
+        /// </remarks>
+        int m_SkillInputEndedFrame = -1;
+
+        void FinishSkill()
+        {
+            m_CurrentSkillInput = null;
+            m_CurrentSkillInputButton = null;
+            m_SkillInputEndedFrame = Time.frameCount;
+        }
+
+        /// <summary>
+        /// Ends the running charge-up input. Clears our reference first: OnReleaseKey destroys the
+        /// input object, which calls back into FinishSkill, and we must not be left pointing at a
+        /// dead one either way.
+        /// </summary>
+        void ReleaseCurrentSkillInput()
+        {
+            var input = m_CurrentSkillInput;
+            m_CurrentSkillInput = null;
+            m_CurrentSkillInputButton = null;
+            m_SkillInputEndedFrame = Time.frameCount;
+            input.OnReleaseKey();
+        }
 
         void SendInput(ActionRequestData action)
         {
@@ -283,8 +398,11 @@ namespace Unity.BossRoom.Gameplay.UserInput
             {
                 if (m_CurrentSkillInput != null)
                 {
+                    // Cleared here rather than left to the input object's OnDestroy: Destroy is
+                    // deferred to the end of the frame, so anything else pressed in this same
+                    // batch would still see a skill input in progress and be dropped.
                     if (IsReleaseStyle(m_ActionRequests[i].TriggerStyle))
-                        m_CurrentSkillInput.OnReleaseKey();
+                        ReleaseCurrentSkillInput();
                 }
                 else if (!IsReleaseStyle(m_ActionRequests[i].TriggerStyle))
                 {
@@ -294,11 +412,12 @@ namespace Unity.BossRoom.Gameplay.UserInput
                         var skillPlayer = Instantiate(actionPrototype.Config.ActionInput);
                         skillPlayer.Initiate(m_ServerCharacter, m_PhysicsWrapper.Transform.position, actionPrototype.ActionID, SendInput, FinishSkill);
                         m_CurrentSkillInput = skillPlayer;
+                        m_CurrentSkillInputButton = m_ActionRequests[i].SourceButton;
                         m_SkillInputStartTime = Time.time;
                     }
                     else
                     {
-                        PerformSkill(actionPrototype.ActionID, m_ActionRequests[i].TriggerStyle, m_ActionRequests[i].TargetId);
+                        PerformSkill(actionPrototype.ActionID, m_ActionRequests[i].TargetId);
                     }
                 }
             }
@@ -342,7 +461,9 @@ namespace Unity.BossRoom.Gameplay.UserInput
             }
         }
 
-        void PerformSkill(ActionID actionID, SkillTriggerStyle triggerStyle, ulong targetId = 0)
+        // Deliberately takes no SkillTriggerStyle. It used to, and used it to pick a different
+        // targeting rule per trigger — that is exactly the inconsistency this rework removes.
+        void PerformSkill(ActionID actionID, ulong targetId = 0)
         {
             var actionProto = GameDataSource.Instance.GetActionPrototypeByID(actionID);
 
@@ -362,136 +483,91 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 return;
             }
 
-            Transform hitTransform = null;
+            // One aim, whatever pressed the button. A skill fired with the left mouse button, the
+            // "1" key or the action-bar button now resolves identically — the three used to pick
+            // their target three different ways, so the same power aimed differently depending on
+            // how you asked for it, which is the kind of thing a player feels but can't name.
+            Vector3 aimPoint = GetAimPoint();
+            var target = ResolveTarget(actionProto.Config.Logic, targetId, GetAimDirection());
 
-            if (targetId != 0)
+            var data = new ActionRequestData { ActionID = actionID };
+
+            if (target != null)
             {
-                var targetNetId = NetworkIdentityUtils.FindByNetId((uint)targetId);
-                if (targetNetId != null)
-                    hitTransform = targetNetId.transform;
-            }
-            else
-            {
-                int numHits = 0;
-                if (triggerStyle == SkillTriggerStyle.MouseClick)
+                ulong targetNetObjId = (ulong)(uint)target.netId;
+
+                // Co-op only: the basic attack on a downed ally becomes a Revive. In PvP other
+                // players are enemies, so Skill1 stays an attack.
+                if (!GameDataSource.IsPvPMode
+                    && actionID == CharacterClass.Skill1.ActionID
+                    && target.TryGetComponent<ServerCharacter>(out var targetCharacter)
+                    && !targetCharacter.IsNpc
+                    && targetCharacter.LifeState == LifeState.Fainted)
                 {
-                    var ray = m_MainCamera.ScreenPointToRay(m_PointAction.action.ReadValue<Vector2>());
-                    numHits = Physics.RaycastNonAlloc(ray, k_CachedHit, k_MouseInputRaycastDistance, m_ActionLayerMask);
+                    actionID = GameDataSource.Instance.ReviveActionPrototype.ActionID;
                 }
 
-                int networkedHitIndex = -1;
-                for (int i = 0; i < numHits; i++)
-                {
-                    if (k_CachedHit[i].transform.GetComponentInParent<NetworkIdentity>())
-                    {
-                        networkedHitIndex = i;
-                        break;
-                    }
-                }
+                data.ActionID = actionID;
+                data.TargetIds = new[] { targetNetObjId };
 
-                hitTransform = networkedHitIndex >= 0 ? k_CachedHit[networkedHitIndex].transform : null;
+                // Aim at the foe the assist chose rather than the raw aim point. That correction
+                // is the entire job of the assist, and it keeps Direction agreeing with the target
+                // we just declared.
+                aimPoint = PhysicsWrapper.TryGetPhysicsWrapper(targetNetObjId, out var movementContainer)
+                    ? movementContainer.Transform.position
+                    : target.transform.position;
 
-                // Forgiving selection: if the click didn't land squarely on a character, grab
-                // the nearest valid enemy to where the cursor hit the ground. Lets you select
-                // foes you aren't directly facing and makes target-picking far less fiddly.
-                if (hitTransform == null && triggerStyle == SkillTriggerStyle.MouseClick && numHits > 0
-                    && TryGetEnemyNearestToPoint(k_CachedHit[0].point, k_SelectAssistRadius, out var nearestEnemy))
-                {
-                    hitTransform = nearestEnemy.transform;
-                }
-            }
-
-            if (GetActionRequestForTarget(hitTransform, actionID, triggerStyle, out ActionRequestData playerAction))
-            {
                 m_LastSentMove = Time.time + k_TargetMoveTimeout;
-                SendInput(playerAction);
             }
-            else if (!GameDataSource.Instance.GetActionPrototypeByID(actionID).IsGeneralTargetAction)
+            else if (actionProto.IsGeneralTargetAction)
             {
-                var data = new ActionRequestData();
-                Vector3 aimPoint;
-                if (triggerStyle == SkillTriggerStyle.MouseClick)
-                {
-                    // Mouse click already raycast the ground into k_CachedHit this frame.
-                    aimPoint = k_CachedHit[0].point;
-                }
-                else
-                {
-                    // Keyboard/gamepad with no target: there is no fresh cursor ray, so
-                    // k_CachedHit holds a stale point from a previous click. Aim where the
-                    // player faces instead, so the attack fires forward (toward where you
-                    // look) rather than snapping the character to some old direction.
-                    Vector3 aimDir = GetAimDirection();
-                    if (aimDir.sqrMagnitude < 0.001f) aimDir = m_PhysicsWrapper.Transform.forward;
-                    aimPoint = m_PhysicsWrapper.Transform.position + aimDir.normalized * 5f;
-                }
-                PopulateSkillRequest(aimPoint, actionID, ref data);
-                SendInput(data);
+                // A Target action with nothing to target only clears the reticle — there is no
+                // meaningful positional version of it to send.
+                SendInput(new ActionRequestData { ActionID = actionID, ShouldQueue = false });
+                return;
             }
+
+            PopulateSkillRequest(aimPoint, actionID, ref data);
+            SendInput(data);
         }
 
-        bool GetActionRequestForTarget(Transform hit, ActionID actionID, SkillTriggerStyle triggerStyle, out ActionRequestData resultData)
+        /// <summary>
+        /// Who this skill is aimed at: an explicitly named target (the action bar can supply one),
+        /// otherwise — for offensive skills — whatever the aim assist picks from the current aim.
+        /// Skills cast on a thing rather than in a direction (Revive, Pick Up) fall back to the
+        /// reticle's current target.
+        ///
+        /// <para>Deliberately takes no trigger style. Which button was pressed used to change the
+        /// answer, and that inconsistency is what this rework exists to remove.</para>
+        /// </summary>
+        NetworkIdentity ResolveTarget(ActionLogic logic, ulong requestedTargetId, Vector3 aimDirection)
         {
-            resultData = new ActionRequestData();
+            NetworkIdentity target;
 
-            var targetNetId = hit != null ? hit.GetComponentInParent<NetworkIdentity>() : null;
-
-            if (!targetNetId && !GameDataSource.Instance.GetActionPrototypeByID(actionID).IsGeneralTargetAction)
+            if (requestedTargetId != 0)
             {
-                var logic = GameDataSource.Instance.GetActionPrototypeByID(actionID).Config.Logic;
-                bool offensive = logic == ActionLogic.Melee || logic == ActionLogic.LaunchProjectile
-                                 || logic == ActionLogic.RangedFXTargeted || logic == ActionLogic.DashAttack;
-
-                if (offensive && triggerStyle != SkillTriggerStyle.MouseClick)
-                {
-                    // Tight aim-assist for keyboard/gamepad attacks: snap onto a foe only if
-                    // it's within a small angle of where you aim. If none, leave the target
-                    // null so the skill fires straight ahead (handled by PerformSkill). This
-                    // is the "small auto-aim" on top of the wider auto-select reticle.
-                    if (TryGetAimAssistTarget(out var assistNetId))
-                        targetNetId = assistNetId;
-                }
-                else if ((logic == ActionLogic.RangedFXTargeted || logic == ActionLogic.LaunchProjectile)
-                         && triggerStyle == SkillTriggerStyle.MouseClick)
-                {
-                    // Ranged skillshots (Mage bolt, Archer arrow): if the click didn't land on a
-                    // foe, aim at the cursor point (handled by PerformSkill's no-target branch)
-                    // instead of snapping to the soft-locked auto-target off to the side. The shot
-                    // always flies toward the mouse, independent of where the character is facing.
-                    // Leaving targetNetId null makes this method return false so that fallback runs.
-                }
-                else
-                {
-                    // Mouse, or non-offensive skills (revive/pickup): use the active target.
-                    targetNetId = NetworkIdentityUtils.FindByNetId((uint)m_ServerCharacter.TargetId);
-                }
+                target = NetworkIdentityUtils.FindByNetId((uint)requestedTargetId);
             }
-
-            ulong targetNetObjId = targetNetId != null ? (ulong)(uint)targetNetId.netId : 0;
-
-            if (targetNetId == null || !ActionUtils.IsValidTarget(targetNetObjId))
-                return false;
-
-            if (targetNetId.TryGetComponent<ServerCharacter>(out var serverCharacter))
+            else if (IsOffensive(logic))
             {
-                if (!GameDataSource.IsPvPMode && actionID == CharacterClass.Skill1.ActionID && triggerStyle == SkillTriggerStyle.MouseClick)
-                {
-                    if (!serverCharacter.IsNpc && serverCharacter.LifeState == LifeState.Fainted)
-                        actionID = GameDataSource.Instance.ReviveActionPrototype.ActionID;
-                }
+                TryGetAimAssistTarget(aimDirection, out target);
             }
-
-            Vector3 targetHitPoint;
-            if (PhysicsWrapper.TryGetPhysicsWrapper(targetNetObjId, out var movementContainer))
-                targetHitPoint = movementContainer.Transform.position;
             else
-                targetHitPoint = targetNetId.transform.position;
+            {
+                target = NetworkIdentityUtils.FindByNetId((uint)m_ServerCharacter.TargetId);
+            }
 
-            resultData.ActionID = actionID;
-            resultData.TargetIds = new ulong[] { targetNetObjId };
-            PopulateSkillRequest(targetHitPoint, actionID, ref resultData);
-            return true;
+            if (target == null) return null;
+            return ActionUtils.IsValidTarget((ulong)(uint)target.netId) ? target : null;
         }
+
+        static bool IsOffensive(ActionLogic logic) =>
+            logic == ActionLogic.Melee || logic == ActionLogic.LaunchProjectile
+            || logic == ActionLogic.RangedFXTargeted || logic == ActionLogic.DashAttack
+            || logic == ActionLogic.MeteorStrike;
+        // SpinAttack and FrostNova are deliberately absent: they are centred on the caster, so
+        // there is no foe for the aim assist to resolve and asking it for one would only move the
+        // reticle for no reason.
 
         void PopulateSkillRequest(Vector3 hitPoint, ActionID actionID, ref ActionRequestData resultData)
         {
@@ -524,15 +600,37 @@ namespace Unity.BossRoom.Gameplay.UserInput
                     return;
                 case ActionLogic.DashAttack:
                     resultData.Position = hitPoint;
+                    // ShouldClose off. Left on — it defaults to true at the top of this method —
+                    // the server synthesises a Chase action in front of the dash and hands it the
+                    // movement, so pressing dash while running stopped the player and walked them
+                    // to the target instead. Which is absurd for the one ability whose entire job
+                    // is closing distance: it was queueing a slower version of itself first.
+                    resultData.ShouldClose = false;
                     return;
                 case ActionLogic.PickUp:
                     resultData.CancelMovement = true;
                     resultData.ShouldQueue = false;
                     return;
+                case ActionLogic.SpinAttack:
+                case ActionLogic.FrostNova:
+                    // Centred on the caster: there is nothing to aim and nobody to close on.
+                    // Direction is still filled in so the client visualisation has something
+                    // sensible to orient the effect by.
+                    resultData.Direction = direction;
+                    resultData.ShouldClose = false;
+                    return;
+                case ActionLogic.MeteorStrike:
+                    // Lands on a spot, like the other ground-targeted powers. ShouldClose stays
+                    // off — the whole point is that the Mage calls it down from where they are.
+                    resultData.Position = hitPoint;
+                    resultData.Direction = direction;
+                    resultData.ShouldClose = false;
+                    return;
             }
         }
 
-        public void RequestAction(ActionID actionID, SkillTriggerStyle triggerStyle, ulong targetId = 0)
+        public void RequestAction(ActionID actionID, SkillTriggerStyle triggerStyle, ulong targetId = 0,
+            InputAction sourceButton = null)
         {
             Assert.IsNotNull(GameDataSource.Instance.GetActionPrototypeByID(actionID),
                 $"Action {actionID} must be in GameDataSource prototypes!");
@@ -542,6 +640,9 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 m_ActionRequests[m_ActionRequestCount].RequestedActionID = actionID;
                 m_ActionRequests[m_ActionRequestCount].TriggerStyle = triggerStyle;
                 m_ActionRequests[m_ActionRequestCount].TargetId = targetId;
+                // Always assigned: the array is reused, so a stale button from an earlier request
+                // would otherwise be inherited by a keyboard or UI one.
+                m_ActionRequests[m_ActionRequestCount].SourceButton = sourceButton;
                 m_ActionRequestCount++;
             }
         }
@@ -559,255 +660,439 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
         void Update()
         {
-            UpdateAimMode();
-            UpdateAutoTarget();
+            UpdateAimTarget();
+            SendAimDirection();
+
+            // A charge started with a mouse button ends when that button comes back up. This has to
+            // sit outside the click block below, because that block is skipped for as long as a
+            // skill input is alive — which is precisely when the release matters. Tested by button
+            // state rather than by a release event so a release that landed before the input
+            // existed (a very fast click) still ends it on the next frame.
+            if (m_CurrentSkillInput != null && m_CurrentSkillInputButton != null
+                && !m_CurrentSkillInputButton.IsPressed())
+            {
+                ReleaseCurrentSkillInput();
+            }
 
             // Safety net: never let a charge-up input (Tank's Shield Aura, Archer's charged shot)
             // hold the input system hostage. If its release never arrived, end it ourselves —
             // otherwise the hero can still run but every attack click is swallowed.
             if (m_CurrentSkillInput != null && (Time.time - m_SkillInputStartTime) > k_MaxSkillInputHoldSeconds)
             {
-                var stuckInput = m_CurrentSkillInput;
-                m_CurrentSkillInput = null;
-                stuckInput.OnReleaseKey();
+                ReleaseCurrentSkillInput();
             }
 
-            if (!EventSystem.current.IsPointerOverGameObject() && m_CurrentSkillInput == null)
+            // Not merely "no reticle up" but "no reticle up, and none went down this frame":
+            // see m_SkillInputEndedFrame.
+            if (m_CurrentSkillInput == null && Time.frameCount != m_SkillInputEndedFrame)
             {
-                // Right click: cast the hero's primary power (Skill1).
-                if (m_Skill1Action.action.WasPressedThisFrame())
-                    RequestAction(CharacterClass.Skill1.ActionID, SkillTriggerStyle.MouseClick);
+                // Left click: the basic attack (Skill1). It used to select a target instead, which
+                // no longer has a job — the aim decides who gets hit, and the reticle follows the
+                // aim rather than a click. Putting the attack on the left button is where a player
+                // picking the game up reaches for it.
+                //
+                // Still routed through the input actions rather than read off Mouse.current, so the
+                // bindings stay rebindable and a gamepad's face buttons keep working — but a press
+                // that came from the touchscreen is dropped. A world tap used to be harmless (it
+                // only selected a target); firing on it would mean every stray tap let off an
+                // attack, and touch already has a better way in — the action-bar button, which can
+                // be dragged to aim first.
+                bool fromTouch = Touchscreen.current != null &&
+                                 Touchscreen.current.primaryTouch.press.wasPressedThisFrame;
+                bool blocked = fromTouch || IsTouchGestureActive();
 
-                // Left click: only selects the character to attack. Click-to-move was removed
-                // on purpose — movement is WASD / stick / on-screen joystick — so aiming and
-                // firing no longer fight with a walk-to-cursor command. On touch we ignore the
-                // press while the movement joystick or the zoom bar is engaged, so starting to walk
-                // or to zoom doesn't also select a random target. (Those widgets carry no
-                // GraphicRaycaster, so the EventSystem check above doesn't see them.)
-                if (m_TargetAction.action.WasPressedThisFrame() && !MobileMovementJoystick.IsActive &&
-                    !MobileZoomBar.IsActive)
+                bool leftPressed = actionState1 != null && m_TargetAction.action.WasPressedThisFrame();
+                // Right click: the class power (Skill2). Not every class defines one, hence the guard.
+                bool rightPressed = actionState2 != null && m_Skill1Action.action.WasPressedThisFrame();
+
+                // The UI test runs only on the frame a button actually went down: it costs a
+                // raycast, and asking once per click is both cheaper and more accurate than asking
+                // every frame off a pointer state that lags by one.
+                if ((leftPressed || rightPressed) && !blocked && !IsPointerOverClickableUI())
                 {
-                    m_ManualTargetUntil = Time.time + k_ManualTargetHoldSeconds;
-                    m_ManualTargetGraceUntil = Time.time + k_ManualTargetGraceSeconds;
-                    RequestAction(GameDataSource.Instance.GeneralTargetActionPrototype.ActionID, SkillTriggerStyle.MouseClick);
+                    if (leftPressed)
+                        RequestAction(actionState1.actionID, SkillTriggerStyle.MouseClick,
+                            sourceButton: m_TargetAction.action);
+
+                    if (rightPressed)
+                        RequestAction(actionState2.actionID, SkillTriggerStyle.MouseClick,
+                            sourceButton: m_Skill1Action.action);
                 }
             }
         }
 
-        // Converts a 2D move input (WASD/stick) into a world-space direction on the
-        // ground plane, relative to the camera so "up" always means "away from camera".
-        Vector3 CameraRelativeMove(Vector2 input)
+        // Scratch for the click-time UI test. Reused so a click doesn't allocate.
+        PointerEventData m_UiPointerData;
+        readonly List<RaycastResult> m_UiRaycastResults = new List<RaycastResult>();
+
+        /// <summary>
+        /// Whether the cursor is over UI that would actually do something with a click.
+        /// </summary>
+        /// <remarks>
+        /// <para>This used to be <c>EventSystem.IsPointerOverGameObject()</c>, which answers "is
+        /// there any graphic under the pointer" — and the HUD is full of graphics that are not
+        /// buttons. The action bar's own backdrop is a 575×128 image at 2% opacity sitting behind
+        /// the skill buttons, the emote bar has a twin, and the party HUD contributes name labels
+        /// and portraits. All of them are invisible or decorative, all of them answered "yes", and
+        /// every attack click that landed on one was silently thrown away. That is why attacking
+        /// with the mouse dropped hits in some corners of the screen and never anywhere else, with
+        /// every class, while the "1" key — which does not pass through here — always worked.</para>
+        ///
+        /// <para>So the question asked is the narrower one that was always meant: would this click
+        /// be delivered to something? A backdrop takes no click and no longer eats one; a skill
+        /// button still does, which is what stops a press on the action bar from also swinging.</para>
+        /// </remarks>
+        bool IsPointerOverClickableUI()
         {
-            Vector3 forward;
-
-            // Straight from the camera's orbit yaw (see CameraOrbitYaw), not from the camera
-            // transform: the orbital follow damps its position, so while the player is swinging the
-            // camera the transform lags the orbit and a basis built from it drifts and snaps back
-            // under their thumb.
-            float basisYaw = CameraOrbitYaw.Yaw;
-            if (!float.IsNaN(basisYaw))
+            var eventSystem = EventSystem.current;
+            if (eventSystem == null)
             {
-                forward = Quaternion.AngleAxis(basisYaw, Vector3.up) * Vector3.forward;
+                return false;
             }
-            else
+
+            m_UiPointerData ??= new PointerEventData(eventSystem);
+            m_UiPointerData.position = m_PointAction.action.ReadValue<Vector2>();
+
+            m_UiRaycastResults.Clear();
+            eventSystem.RaycastAll(m_UiPointerData, m_UiRaycastResults);
+
+            for (int i = 0; i < m_UiRaycastResults.Count; i++)
             {
-                // No camera resolved yet: fall back to the rendered one.
-                forward = m_MainCamera.transform.forward;
-                forward.y = 0f;
-                // If it looks nearly straight down, use its "up" projected on the ground so the
-                // direction stays stable.
-                if (forward.sqrMagnitude < 0.001f)
+                var hit = m_UiRaycastResults[i].gameObject;
+                if (hit == null)
                 {
-                    forward = m_MainCamera.transform.up;
-                    forward.y = 0f;
+                    continue;
                 }
-                forward.Normalize();
+
+                // GetEventHandler walks up the hierarchy, so hitting a button's icon still finds
+                // the button. Down is checked as well as click: the action bar's charge-up buttons
+                // act on press, not on release.
+                if (ExecuteEvents.GetEventHandler<IPointerClickHandler>(hit) != null
+                    || ExecuteEvents.GetEventHandler<IPointerDownHandler>(hit) != null)
+                {
+                    return true;
+                }
             }
 
-            Vector3 right = Vector3.Cross(Vector3.up, forward);
-
-            return (forward * input.y + right * input.x).normalized;
+            return false;
         }
 
         /// <summary>
-        /// Continuous, facing-based soft lock: repeatedly picks the best enemy inside a
-        /// frontal cone (relative to where the character faces) and makes it the active
-        /// target, so attacks land reliably without precise mouse aiming. Mobile-friendly,
-        /// and fixes player-vs-player melee that previously needed a pixel-perfect click.
-        /// Mouse click-targeting still works and simply overrides the current pick.
+        /// True while a touch widget owns the current gesture, so a press meant for the joystick,
+        /// the zoom bar or a camera swing doesn't also fire a skill.
         /// </summary>
-        // Latches the aim mode to the input device the player is actually using, so a
-        // PC player with a gamepad plugged in still gets mouse aim until they touch the
-        // stick (and vice-versa). On a phone there's no mouse, so it stays Movement.
-        void UpdateAimMode()
-        {
-            float now = Time.unscaledTime;
+        static bool IsTouchGestureActive() =>
+            MobileMovementJoystick.IsActive || MobileZoomBar.IsActive || TouchCameraOrbit.IsActive;
 
-            // Pointer intent: the mouse was moved or a mouse button is held.
-            if (Mouse.current != null &&
-                (Mouse.current.delta.ReadValue().sqrMagnitude > 0.5f
-                 || Mouse.current.leftButton.isPressed
-                 || Mouse.current.rightButton.isPressed))
-            {
-                m_LastPointerInputTime = now;
-            }
+        // Converts a 2D move input (WASD/stick) into a world-space direction on the ground plane,
+        // relative to the camera so "up" always means "away from camera". Built from the camera's
+        // orbit yaw rather than its transform — the orbital follow damps its position, so a basis
+        // taken from the transform lags the orbit while the camera is being swung and slides around
+        // under the player's thumb. See CameraOrbitYaw.
+        Vector3 CameraRelativeMove(Vector2 input) => CameraOrbitYaw.ToWorldDirection(input);
 
-            // Movement intent: WASD keys, gamepad stick, or touch are active.
-            var keyboard = Keyboard.current;
-            bool wasdActive = keyboard != null &&
-                (keyboard.wKey.isPressed || keyboard.aKey.isPressed ||
-                 keyboard.sKey.isPressed || keyboard.dKey.isPressed);
-            var gamepad = Gamepad.current;
-            bool stickActive = gamepad != null && gamepad.leftStick.ReadValue().sqrMagnitude > 0.04f;
-            bool touchActive = Touchscreen.current != null && Touchscreen.current.primaryTouch.press.isPressed;
-            if (wasdActive || stickActive || touchActive)
-            {
-                m_LastMovementInputTime = now;
-            }
+        // How far out a purely directional aim (touch drag, gamepad stick) is treated as pointing,
+        // in metres. Only matters for skills that land at a point rather than fly along a
+        // direction — an AoE's ground zero, a dash's destination.
+        const float k_AimProjectionDistance = 12f;
 
-            // Most recent input wins. Ties (both this frame, or both still 0 at start)
-            // keep the current mode, so nothing flickers when the player is idle.
-            if (m_LastPointerInputTime > m_LastMovementInputTime) m_AimMode = AimMode.Pointer;
-            else if (m_LastMovementInputTime > m_LastPointerInputTime) m_AimMode = AimMode.Movement;
-        }
+        // Dedicated buffer for the cursor ground-raycast. The aim is read several times a frame
+        // (reticle, aim stream, firing), so it gets its own scratch rather than sharing one with
+        // whatever the caller is in the middle of using.
+        readonly RaycastHit[] m_AimRayHits = new RaycastHit[4];
 
-        // The direction the player is aiming, used as the centre of the auto-target cone.
-        Vector3 GetAimDirection()
+        /// <summary>
+        /// The world point the player is aiming at, on the ground plane. Together with
+        /// <see cref="GetAimDirection"/> this is the only place the aim is decided; every skill,
+        /// however it was triggered, resolves from here.
+        ///
+        /// <para>Order of authority, and it is deliberately the same list, in the same order, as
+        /// <see cref="GetAimDirection"/>: a touch aim (a drag out of a skill button) wins, since it
+        /// only exists while the player is deliberately aiming; then a gamepad's right stick; then
+        /// the mouse cursor, but only while it is still fresh; then where the character is
+        /// running; and finally straight ahead.</para>
+        ///
+        /// <para><b>The two must not disagree.</b> They did: the direction was taught to fall back
+        /// on the run direction and this was left on the old list, so a skill would be aimed
+        /// forwards and land behind. Point-targeted powers are where that shows worst — the dash
+        /// took its destination from here, so it would compute a spot at the player's feet and
+        /// appear not to fire at all.</para>
+        /// </summary>
+        Vector3 GetAimPoint()
         {
             Vector3 pos = m_PhysicsWrapper.Transform.position;
 
-            if (m_AimMode == AimMode.Pointer && m_MainCamera != null && Mouse.current != null)
-            {
-                // Aim toward where the mouse cursor hits the ground.
-                var ray = m_MainCamera.ScreenPointToRay(m_PointAction.action.ReadValue<Vector2>());
-                if (Physics.RaycastNonAlloc(ray, k_CachedHit, k_MouseInputRaycastDistance, m_GroundLayerMask) > 0)
-                {
-                    Vector3 toCursor = k_CachedHit[0].point - pos;
-                    toCursor.y = 0f;
-                    if (toCursor.sqrMagnitude > 0.001f) return toCursor.normalized;
-                }
-            }
+            if (TryGetTouchAimDirection(out var touchDir))
+                return pos + touchDir * k_AimProjectionDistance;
 
-            // Movement mode (gamepad / mobile): aim where we walk, i.e. the way we face.
-            Vector3 forward = m_PhysicsWrapper.Transform.forward;
-            forward.y = 0f;
-            return forward.sqrMagnitude > 0.001f ? forward.normalized : Vector3.zero;
+            if (TryGetGamepadAimDirection(out var padDir))
+                return pos + padDir * k_AimProjectionDistance;
+
+            // The cursor gives a real distance, not just a bearing, so use the point itself —
+            // but only while the player has been moving it. A cursor left behind during a chase
+            // points backwards, and for a dash that means dashing away from what you are chasing.
+            if (CursorIsFresh() && TryGetCursorGroundPoint(out var cursorPoint))
+                return cursorPoint;
+
+            if (TryGetMoveDirection(out var moveDir))
+                return pos + moveDir * k_AimProjectionDistance;
+
+            return pos + FlatForward() * k_AimProjectionDistance;
         }
 
-        void UpdateAutoTarget()
+        /// <summary>
+        /// The direction the player is aiming, flattened and normalized. Never zero.
+        /// </summary>
+        Vector3 GetAimDirection()
         {
-            if (Time.time - m_LastAutoTarget < k_AutoTargetInterval) return;
-            m_LastAutoTarget = Time.time;
+            if (TryGetTouchAimDirection(out var touchDir)) return touchDir;
+            if (TryGetGamepadAimDirection(out var padDir)) return padDir;
 
-            // Respect a recent manual pick, but only while it's still worth respecting: past the
-            // short grace window the hold is dropped as soon as the picked foe is dead, gone or
-            // out of range, so the player isn't locked onto nothing for the rest of the 3s.
-            if (Time.time < m_ManualTargetUntil && Time.time >= m_ManualTargetGraceUntil
-                && !IsManualTargetStillValid())
+            // A cursor the player has not touched in a while is not an aim, it is a leftover.
+            // Chasing somebody with WASD, the character runs PAST the place the mouse is still
+            // pointing at, so the direction to the cursor flips round and the attack comes out
+            // backwards — and it reads as the aim assist picking an enemy behind you, when the
+            // assist is faithfully searching a cone that was already facing the wrong way.
+            if (CursorIsFresh() && TryGetCursorGroundPoint(out var cursorPoint))
             {
-                m_ManualTargetUntil = 0f;
+                Vector3 toCursor = cursorPoint - m_PhysicsWrapper.Transform.position;
+                toCursor.y = 0f;
+                if (toCursor.sqrMagnitude > 0.001f) return toCursor.normalized;
             }
 
-            // We used to also check that
-            // m_ServerCharacter.TargetId already matched the manual pick before honoring the
-            // hold — but TargetId is a server-authoritative SyncVar that only updates after a
-            // full CmdPlayAction round-trip. On localhost that round-trip is ~0ms so the race
-            // never showed up, but against a real dedicated server (VPS ping) there's a window
-            // right after the click where TargetId still holds the *previous* value, so that
-            // check failed and auto-target immediately stomped the manual pick before the
-            // server's confirmation ever arrived. Hence the grace window above: we trust the
-            // hold blindly at first, and only start validating once the server has answered.
-            if (Time.time < m_ManualTargetUntil) return;
-
-            Vector3 myPos = m_PhysicsWrapper.Transform.position;
-            Vector3 aimDir = GetAimDirection();
-            if (aimDir.sqrMagnitude < 0.001f) return;
-
-            ulong myNetId = m_ServerCharacter.NetworkObjectId;
-            int numHits = Physics.OverlapSphereNonAlloc(myPos, k_AutoTargetRange, m_AutoTargetHits, m_AutoTargetMask);
-
-            ServerCharacter best = null;
-            float bestScore = float.MaxValue;
-            for (int i = 0; i < numHits; i++)
+            // Where the player is running, ahead of where the character happens to be pointing.
+            //
+            // This is what phones fall through to, and it is the same bug wearing different
+            // clothes. There is no cursor on a phone, so the aim used to end at FlatForward — the
+            // character's facing — which is owned by the SERVER and therefore arrives late. Turn
+            // hard while chasing someone and the client is still holding the facing from before
+            // the turn, so the swing goes out along it. The joystick, unlike the facing, is read
+            // locally and is never stale: it is what the player is asking for right now.
+            if (TryGetMoveDirection(out var moveDir))
             {
-                var candidate = m_AutoTargetHits[i].GetComponentInParent<ServerCharacter>();
-                if (candidate == null) continue;
-                if ((ulong)(uint)candidate.netId == myNetId) continue;       // never target self
-                if (candidate.LifeState != LifeState.Alive) continue;
-                // Enemies: NPCs are always hostile; other players only in PvP mode.
-                if (!candidate.IsNpc && !GameDataSource.IsPvPMode) continue;
-                if (candidate.physicsWrapper == null) continue;
-
-                Vector3 foePos = candidate.physicsWrapper.Transform.position;
-                Vector3 toFoe = foePos - myPos;
-                toFoe.y = 0f;
-                float dist = toFoe.magnitude;
-                if (dist < 0.01f) continue;
-
-                float angle = Vector3.Angle(aimDir, toFoe / dist);
-                if (angle > k_AutoTargetMaxAngle) continue;
-
-                // Line of fire: skip foes behind a wall so we never lock through cover.
-                if (!HasLineOfFire(myPos, foePos)) continue;
-
-                // Prefer the foe most directly in the line of fire; distance is the
-                // tie-breaker (closer wins) rather than the dominant term. In PvP a foe
-                // player outranks the imps standing around them.
-                float score = angle * k_AutoTargetAngleWeight + dist;
-                if (!candidate.IsNpc) score -= k_PvPPlayerPriorityBonus;
-                if (score < bestScore)
-                {
-                    bestScore = score;
-                    best = candidate;
-                }
+                return moveDir;
             }
 
-            ulong bestNetId = best != null ? (ulong)(uint)best.netId : 0;
-            if (bestNetId == m_ServerCharacter.TargetId) return; // no change — don't spam the server
+            return FlatForward();
+        }
 
-            // Drive the existing Target action: a populated target sets+faces it (and shows
-            // the reticle); an empty one clears the lock when nothing is in front.
-            var data = new ActionRequestData
+        /// <summary>Screen position of the pointer last frame, to notice that it moved.</summary>
+        Vector2 m_LastPointerPosition;
+        float m_LastPointerMoveTime = -999f;
+
+        /// <summary>
+        /// How long a still mouse keeps owning the aim.
+        /// </summary>
+        /// <remarks>
+        /// Long enough that aiming somewhere and holding it is respected — that is a deliberate
+        /// act and must never be overridden — and short enough that it has expired by the time a
+        /// chase has carried the player past their own cursor.
+        /// </remarks>
+        const float k_CursorFreshSeconds = 1.2f;
+
+        /// <summary>Pixels of movement that count as the player re-aiming.</summary>
+        const float k_PointerMoveThreshold = 6f;
+
+        bool CursorIsFresh()
+        {
+            if (m_PointAction == null || m_PointAction.action == null)
+            {
+                return false;
+            }
+
+            var position = m_PointAction.action.ReadValue<Vector2>();
+            if ((position - m_LastPointerPosition).sqrMagnitude
+                > k_PointerMoveThreshold * k_PointerMoveThreshold)
+            {
+                m_LastPointerPosition = position;
+                m_LastPointerMoveTime = Time.time;
+            }
+
+            return Time.time - m_LastPointerMoveTime < k_CursorFreshSeconds;
+        }
+
+        /// <summary>
+        /// Where the player is running, in world space, or false if they are standing still.
+        /// </summary>
+        /// <remarks>
+        /// Taken through the same camera-relative basis the movement itself uses, so "the way I am
+        /// running" means the same thing to the aim as it does to the legs.
+        /// </remarks>
+        bool TryGetMoveDirection(out Vector3 direction)
+        {
+            direction = Vector3.zero;
+
+            // BOTH sources, combined exactly as the movement code itself does. The on-screen
+            // joystick does not feed the Move action — it publishes through its own static and is
+            // added in at the point movement is applied — so reading only the action returns zero
+            // on a phone. That is the whole reason this had no effect on mobile: the aim fell
+            // through to the character's facing, which is the server's and arrives late, so a hard
+            // turn mid-chase still swung at where the player used to be looking.
+            Vector2 move = m_MoveActionResolved != null ? m_MoveActionResolved.ReadValue<Vector2>() : Vector2.zero;
+            move = Vector2.ClampMagnitude(move + MobileMovementJoystick.MovementInput, 1f);
+
+            if (move.sqrMagnitude < 0.04f)
+            {
+                return false;
+            }
+
+            direction = CameraRelativeMove(move);
+            return direction.sqrMagnitude > 0.001f;
+        }
+
+        Vector3 FlatForward()
+        {
+            Vector3 forward = m_PhysicsWrapper.Transform.forward;
+            forward.y = 0f;
+            return forward.sqrMagnitude > 0.001f ? forward.normalized : Vector3.forward;
+        }
+
+        /// <summary>Where the mouse cursor meets the ground, if there is a mouse and it hit.</summary>
+        bool TryGetCursorGroundPoint(out Vector3 point)
+        {
+            point = default;
+            if (m_MainCamera == null || Mouse.current == null) return false;
+
+            var ray = m_MainCamera.ScreenPointToRay(m_PointAction.action.ReadValue<Vector2>());
+            if (Physics.RaycastNonAlloc(ray, m_AimRayHits, k_MouseInputRaycastDistance, m_GroundLayerMask) <= 0)
+                return false;
+
+            point = m_AimRayHits[0].point;
+            return true;
+        }
+
+        /// <summary>
+        /// The touch aim, set while the player drags out of a skill button. This is the only way to
+        /// aim on a phone — before it existed, touch players aimed with their body and simply could
+        /// not re-aim while standing still.
+        /// </summary>
+        bool TryGetTouchAimDirection(out Vector3 direction)
+        {
+            if (TouchSkillAim.IsAiming)
+            {
+                direction = TouchSkillAim.WorldDirection;
+                if (direction.sqrMagnitude > 0.001f) return true;
+            }
+
+            direction = default;
+            return false;
+        }
+
+        /// <summary>Right stick, in the camera's basis so "up" is away from the camera.</summary>
+        bool TryGetGamepadAimDirection(out Vector3 direction)
+        {
+            direction = default;
+
+            var gamepad = Gamepad.current;
+            if (gamepad == null) return false;
+
+            Vector2 stick = gamepad.rightStick.ReadValue();
+            if (stick.sqrMagnitude < k_GamepadAimDeadzoneSqr) return false;
+
+            direction = CameraRelativeMove(stick);
+            return direction.sqrMagnitude > 0.001f;
+        }
+
+        const float k_GamepadAimDeadzoneSqr = 0.08f;
+
+        /// <summary>
+        /// Keeps the reticle on whoever the aim assist would actually correct a shot onto, so the
+        /// mark the player sees and the foe the game picks can never disagree. That they used to
+        /// disagree — an 80° soft-lock painting one foe while a skillshot flew at the cursor — is
+        /// the single biggest reason aiming read as unpredictable.
+        ///
+        /// <para>Recomputed on a timer only to save physics queries; firing always resolves the
+        /// assist fresh, so a stale frame here can never cost a hit.</para>
+        /// </summary>
+        void UpdateAimTarget()
+        {
+            if (Time.time - m_LastAimTargetUpdate < k_AimTargetInterval) return;
+            m_LastAimTargetUpdate = Time.time;
+
+            bool found = TryGetAimAssistTarget(GetAimDirection(), out var foe);
+            ulong bestNetId = found ? (ulong)(uint)foe.netId : 0;
+
+            // Kept locally so the aim line can be drawn from this frame's answer. TargetId is a
+            // server SyncVar and only catches up a round-trip later, which on a real server is long
+            // enough for the drawn line to visibly trail the cursor.
+            m_LocalAssistTarget = found ? foe.GetComponent<ServerCharacter>() : null;
+
+            // Compare against what we last *sent*, not only against the SyncVar: the SyncVar takes
+            // a round-trip to reflect the change, so against a remote server this would otherwise
+            // resend the same pick every tick until the confirmation arrived.
+            if (bestNetId == m_LastSentTargetId || bestNetId == m_ServerCharacter.TargetId) return;
+            m_LastSentTargetId = bestNetId;
+
+            // Drives the existing Target action, which is what puts the reticle under a foe. It no
+            // longer turns the character to face them: the body follows movement, and an attack
+            // plants it on the aim for the length of the swing (ServerCharacterMovement.LockFacing).
+            SendInput(new ActionRequestData
             {
                 ActionID = GameDataSource.Instance.GeneralTargetActionPrototype.ActionID,
                 TargetIds = bestNetId != 0 ? new[] { bestNetId } : null,
                 ShouldQueue = false,
-            };
-            SendInput(data);
+            });
         }
 
-        // Half-angle of the aim-assist cone. Much tighter than the auto-select cone
-        // (k_AutoTargetMaxAngle): an attack only snaps onto a foe this close to your aim,
-        // so you mostly hit where you look and only get a small correction. Tune to taste.
-        const float k_AimAssistMaxAngle = 18f;
+        /// <summary>
+        /// Streams the aim direction to the server, rate-limited and skipped while it barely moves.
+        /// Only actions that are aimed at *release* rather than at request need it — the Archer's
+        /// charged shot, which is held for up to a second after its request was sent and so has no
+        /// usable direction of its own. See <c>ServerCharacter.AimDirection</c>.
+        /// </summary>
+        void SendAimDirection()
+        {
+            if (Time.time - m_LastSentAimTime < k_AimSendRateSeconds) return;
+
+            Vector3 aim = GetAimDirection();
+            if (m_LastSentAimDirection != Vector3.zero &&
+                Vector3.Angle(m_LastSentAimDirection, aim) < k_AimSendMinDegrees)
+            {
+                return;
+            }
+
+            m_LastSentAimTime = Time.time;
+            m_LastSentAimDirection = aim;
+            m_ServerCharacter.CmdSetAimDirection(aim);
+        }
 
         /// <summary>
-        /// Picks the foe most aligned with the aim direction, but only within the tight
-        /// <see cref="k_AimAssistMaxAngle"/> cone and with clear line of fire. Returns false
-        /// when nothing qualifies, so the caller fires straight ahead. This is the "small
-        /// auto-aim" layered on top of the wider auto-select.
+        /// Picks the foe most aligned with <paramref name="aimDir"/>, within the tight
+        /// <see cref="k_AimAssistMaxAngle"/> cone and with clear line of fire. Returns false when
+        /// nothing qualifies, so the caller fires exactly where the player pointed.
+        ///
+        /// <para>This is now the <i>only</i> targeting in the game. It both draws the reticle and
+        /// corrects the shot, which is what keeps the two honest.</para>
         /// </summary>
-        bool TryGetAimAssistTarget(out NetworkIdentity foe)
+        bool TryGetAimAssistTarget(Vector3 aimDir, out NetworkIdentity foe)
         {
             foe = null;
 
             Vector3 myPos = m_PhysicsWrapper.Transform.position;
-            Vector3 aimDir = GetAimDirection();
-            if (aimDir.sqrMagnitude < 0.001f) aimDir = m_PhysicsWrapper.Transform.forward;
             aimDir.y = 0f;
             if (aimDir.sqrMagnitude < 0.001f) return false;
             aimDir.Normalize();
 
             ulong myNetId = m_ServerCharacter.NetworkObjectId;
-            int numHits = Physics.OverlapSphereNonAlloc(myPos, k_AutoTargetRange, m_AutoTargetHits, m_AutoTargetMask);
+            int numHits = Physics.OverlapSphereNonAlloc(myPos, k_AimAssistRange, m_AimCandidateHits, m_AimCandidateMask);
+
+            // Mouse only: the cursor's actual ground point, for point-based scoring. Touch and
+            // gamepad aim are bearings — there is no point to be near — so they stay pure-angle.
+            Vector3 cursorPoint = default;
+            bool hasCursor = !TryGetTouchAimDirection(out _)
+                             && !TryGetGamepadAimDirection(out _)
+                             && TryGetCursorGroundPoint(out cursorPoint);
 
             ServerCharacter best = null;
-            // Scored like the soft-lock: raw angle, minus a bonus for foe players so they beat
-            // the imps milling around them. The cone test still uses the raw angle.
-            float bestScore = k_AimAssistMaxAngle;
+            // Scored on angle plus, with a mouse, distance from the cursor — minus a bonus for
+            // foe players so they beat the imps milling around them, minus a stickiness bonus for
+            // the current target so the lock doesn't flicker between two similar candidates. The
+            // cone test still uses the raw angle, so the bonuses only reorder candidates that
+            // were all going to be acceptable anyway.
+            float bestScore = float.MaxValue;
             for (int i = 0; i < numHits; i++)
             {
-                var candidate = m_AutoTargetHits[i].GetComponentInParent<ServerCharacter>();
+                var candidate = m_AimCandidateHits[i].GetComponentInParent<ServerCharacter>();
                 if (candidate == null) continue;
                 if ((ulong)(uint)candidate.netId == myNetId) continue;
                 if (candidate.LifeState != LifeState.Alive) continue;
@@ -820,16 +1105,58 @@ namespace Unity.BossRoom.Gameplay.UserInput
                 float dist = toFoe.magnitude;
                 if (dist < 0.01f) continue;
 
-                float angle = Vector3.Angle(aimDir, toFoe / dist);
-                if (angle > k_AimAssistMaxAngle) continue;   // outside the cone
+                float cursorDist = float.MaxValue;
+                bool hovered = false;
+                if (hasCursor)
+                {
+                    Vector3 cursorToFoe = foePos - cursorPoint;
+                    cursorToFoe.y = 0f;
+                    cursorDist = cursorToFoe.magnitude;
+                    hovered = cursorDist <= k_CursorSnapRadius;
+                }
 
-                float score = candidate.IsNpc ? angle : angle - k_PvPPlayerPriorityBonus;
+                float angle = Vector3.Angle(aimDir, toFoe / dist);
+                // A hovered foe is exempt from the cone: the cursor sitting on somebody is the
+                // least ambiguous aim a mouse can express, and in a top-down game the aim
+                // direction points at the cursor anyway.
+                if (!hovered && angle > k_AimAssistMaxAngle) continue;
+
+                float score = angle;
+                // Nearest-first, as a smooth ramp rather than a tie-break, so it shapes the whole
+                // ordering instead of only settling exact ties.
+                score += dist * k_SelfDistanceWeightDegreesPerMetre;
+                if (hasCursor)
+                {
+                    score += Mathf.Min(cursorDist, k_AimAssistRange) * k_CursorDistanceWeightDegreesPerMetre;
+                }
+                if (hovered)
+                {
+                    // Dominates everything except another hovered foe (then the closer-to-cursor
+                    // one wins through the distance term).
+                    score -= 1000f;
+                }
+                if (!candidate.IsNpc)
+                {
+                    score -= k_PvPPlayerPriorityBonus;
+                }
+                else if (dist <= k_PointBlankRange)
+                {
+                    // An imp this close is the one hitting you. Preferring a player over it is
+                    // correct as a default and wrong in exactly this case, so the exception is
+                    // spelled out rather than left to the distance ramp to maybe win.
+                    score -= k_PointBlankBonus;
+                }
+                if (candidate == m_LocalAssistTarget)
+                {
+                    score -= k_StickyTargetBonusDegrees;
+                }
+
                 if (score > bestScore) continue;             // worse than the current best
 
                 // Don't snap through walls.
                 if (!HasLineOfFire(myPos, foePos)) continue;
 
-                bestScore = score;   // prefer the foe most directly in the line of fire
+                bestScore = score;
                 best = candidate;
             }
 
@@ -847,8 +1174,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
         /// </summary>
         bool HasLineOfFire(Vector3 myPos, Vector3 foePos)
         {
-            Vector3 eye = myPos + Vector3.up * k_AutoTargetEyeHeight;
-            Vector3 foeEye = foePos + Vector3.up * k_AutoTargetEyeHeight;
+            Vector3 eye = myPos + Vector3.up * k_AimEyeHeight;
+            Vector3 foeEye = foePos + Vector3.up * k_AimEyeHeight;
             Vector3 delta = foeEye - eye;
             float dist = delta.magnitude;
             if (dist < 0.01f) return true;
@@ -863,61 +1190,6 @@ namespace Unity.BossRoom.Gameplay.UserInput
             }
 
             return true;
-        }
-
-        /// <summary>
-        /// True while a hand-picked target is still worth keeping the auto-target off:
-        /// it exists, is alive and is still in soft-lock range. Used to cut the manual hold
-        /// short instead of leaving the player locked onto a corpse.
-        /// </summary>
-        bool IsManualTargetStillValid()
-        {
-            if (m_ServerCharacter.TargetId == 0) return false;
-            if (m_TargetServerCharacter == null) return false;
-            if (m_TargetServerCharacter.LifeState != LifeState.Alive) return false;
-            if (m_TargetServerCharacter.physicsWrapper == null) return false;
-
-            Vector3 toTarget = m_TargetServerCharacter.physicsWrapper.Transform.position - m_PhysicsWrapper.Transform.position;
-            toTarget.y = 0f;
-            return toTarget.sqrMagnitude <= k_AutoTargetRange * k_AutoTargetRange;
-        }
-
-        // Radius (metres) around the cursor's ground point within which a left-click will
-        // snap onto an enemy even if you didn't click exactly on it.
-        const float k_SelectAssistRadius = 4f;
-
-        /// <summary>
-        /// Finds the nearest valid enemy to a world point (used for forgiving click-selection).
-        /// Enemies are alive NPCs, plus other players in PvP mode; never ourselves.
-        /// </summary>
-        bool TryGetEnemyNearestToPoint(Vector3 point, float radius, out ServerCharacter enemy)
-        {
-            enemy = null;
-            ulong myNetId = m_ServerCharacter.NetworkObjectId;
-            int numHits = Physics.OverlapSphereNonAlloc(point, radius, m_AutoTargetHits, m_AutoTargetMask);
-
-            float bestScore = radius * radius;
-            for (int i = 0; i < numHits; i++)
-            {
-                var candidate = m_AutoTargetHits[i].GetComponentInParent<ServerCharacter>();
-                if (candidate == null) continue;
-                if ((ulong)(uint)candidate.netId == myNetId) continue;
-                if (candidate.LifeState != LifeState.Alive) continue;
-                if (!candidate.IsNpc && !GameDataSource.IsPvPMode) continue;
-                if (candidate.physicsWrapper == null) continue;
-
-                float distSqr = (candidate.physicsWrapper.Transform.position - point).sqrMagnitude;
-                // Clicking near a player and an imp at once should pick the player — that's
-                // who you meant. NPCs are scored as if they were a bit further away.
-                float score = candidate.IsNpc ? distSqr : distSqr * 0.35f;
-                if (distSqr < radius * radius && score < bestScore)
-                {
-                    bestScore = score;
-                    enemy = candidate;
-                }
-            }
-
-            return enemy != null;
         }
 
         void UpdateAction1()

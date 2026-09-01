@@ -252,8 +252,28 @@ namespace Unity.BossRoom.Gameplay.UI
                 return;
             }
 
+            var action = m_ButtonInfo[buttonType].CurAction;
+
+            if (TouchSkillAim.IsAvailable)
+            {
+                // The button doubles as an aim stick: dragging out of it swings the aim. This is the
+                // only way to aim on a phone — touch used to count as movement input, so the aim was
+                // whichever way the character happened to be walking.
+                TouchSkillAim.BeginAiming(m_ButtonInfo[buttonType].Button.transform as RectTransform);
+
+                // An instant skill fires when the finger *lifts*, so there is something to aim
+                // during. A charge-up skill (anything with an ActionInput — the Archer's charged
+                // shot, the Tank's shield) still fires on press, because pressing is what starts
+                // the charge; it is aimed by the same drag and resolves against the live aim when
+                // the charge is released.
+                if (action.Config.ActionInput == null)
+                {
+                    return;
+                }
+            }
+
             // send input to begin the action associated with this button
-            m_InputSender.RequestAction(m_ButtonInfo[buttonType].CurAction.ActionID, SkillTriggerStyle.UI);
+            m_InputSender.RequestAction(action.ActionID, SkillTriggerStyle.UI);
         }
 
         void OnButtonClickedUp(ActionButtonType buttonType)
@@ -270,8 +290,22 @@ namespace Unity.BossRoom.Gameplay.UI
                 return;
             }
 
+            var action = m_ButtonInfo[buttonType].CurAction;
+
+            // The other half of the touch aim. For an instant skill this is where it actually
+            // fires, along whatever direction the drag ended on; for a charge-up it is the usual
+            // release. Either way EndAiming leaves that direction readable for a moment, because
+            // the request queued here isn't resolved until the next FixedUpdate.
+            if (TouchSkillAim.IsAvailable)
+            {
+                m_InputSender.RequestAction(action.ActionID,
+                    action.Config.ActionInput == null ? SkillTriggerStyle.UI : SkillTriggerStyle.UIRelease);
+                TouchSkillAim.EndAiming();
+                return;
+            }
+
             // send input to complete the action associated with this button
-            m_InputSender.RequestAction(m_ButtonInfo[buttonType].CurAction.ActionID, SkillTriggerStyle.UIRelease);
+            m_InputSender.RequestAction(action.ActionID, SkillTriggerStyle.UIRelease);
         }
 
         void UpdateActionButton(ActionButtonInfo buttonInfo, Action action, bool isClickable = true)

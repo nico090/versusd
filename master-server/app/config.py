@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     server_shared_secret: str = "dev-insecure-change-me"
 
     # MongoDB connection string and database name.
-    mongo_url: str = "mongodb://localhost:27017"
+    mongo_url: str = "mongodb://localhost:27018"
     db_name: str = "versused"
 
     # Seconds without a heartbeat before a lobby/server is pruned.
@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     game_server_port_start: int = 9000
     game_server_port_end: int = 9999
     docker_network: str = "master-server_versused"
-    master_server_internal_url: str = "http://master-server:8000"
+    master_server_internal_url: str = "http://master-server:8001"
     # How long (seconds) to wait for a freshly spawned container to register.
     container_spawn_timeout_seconds: float = 20.0
 

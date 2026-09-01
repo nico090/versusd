@@ -18,7 +18,7 @@ RUN chmod +x VersusD.x86_64
 EXPOSE 9000-9999/udp
 
 # Required env vars (injected by master server spawn.py):
-#   MASTER_SERVER_URL   http://master-server:8000
+#   MASTER_SERVER_URL   http://master-server:8001
 #   SERVER_IP           public IP the clients will connect to
 #   SERVER_PORT         UDP port this instance listens on
 #   SERVER_SHARED_SECRET  shared secret for /servers/* auth

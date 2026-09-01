@@ -113,9 +113,22 @@ namespace Unity.BossRoom.Gameplay.UI
             RequestShutdown();
         }
 
+        /// <summary>
+        /// Hides the connecting spinner, if this screen has one.
+        /// </summary>
+        /// <remarks>
+        /// Guarded because this runs from a ConnectStatus subscriber, and this mediator lives in
+        /// scenes where the spinner is not wired up. An unguarded SetActive threw on every single
+        /// connection status change — and since MessageChannel.Publish had no isolation, that one
+        /// throw stopped the message reaching every subscriber behind it. The visible symptom was
+        /// nowhere near here: connection flows simply failed to finish.
+        /// </remarks>
         public void DisableSignInSpinner()
         {
-            m_SignInSpinner.SetActive(false);
+            if (m_SignInSpinner != null)
+            {
+                m_SignInSpinner.SetActive(false);
+            }
         }
 
         void RequestShutdown()

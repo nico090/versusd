@@ -63,6 +63,7 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
                 {
                     msg.KillerClientId = killer.OwnerClientId;
                     msg.KillerIsNpc = killer.IsNpc;
+                    msg.KillerName = GetDisplayName(killer);
                 }
                 else
                 {
@@ -71,6 +72,23 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects
             }
 
             m_Publisher.Publish(msg);
+        }
+
+        /// <summary>
+        /// The name to show for a character in the kill feed. Players carry a NetworkNameState set
+        /// from their profile; NPCs don't, so they fall back to the serialized name on their prefab.
+        /// </summary>
+        static string GetDisplayName(ServerCharacter character)
+        {
+            if (character.TryGetComponent(out NetworkNameState nameState) && !string.IsNullOrEmpty(nameState.Name))
+            {
+                return nameState.Name;
+            }
+
+            var publisher = character.GetComponent<PublishMessageOnLifeChange>();
+            return publisher != null && !string.IsNullOrEmpty(publisher.m_CharacterName)
+                ? publisher.m_CharacterName
+                : character.CharacterClass.CharacterType.ToString();
         }
     }
 }

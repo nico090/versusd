@@ -178,7 +178,12 @@ namespace Unity.BossRoom.Gameplay.UI
 
         void SetUIFromSlotData(int slot, ServerCharacter serverCharacter)
         {
-            m_PartyHealthSliders[slot].maxValue = serverCharacter.CharacterClass.BaseHP.Value;
+            // MaxHitPoints, not the asset's BaseHP. HeroBalance moves the real ceiling well away
+            // from what the CharacterClass ships — Tank 220 to 160, Rogue 180 to 150, Archer 160 to
+            // 135 — so a bar scaled to BaseHP showed a Tank at full health as 73 percent full and
+            // never reached the end for anyone except the Mage, whose two numbers happen to match.
+            // UIStateDisplayHandler already read it this way; this was the last place that did not.
+            m_PartyHealthSliders[slot].maxValue = serverCharacter.MaxHitPoints;
             m_PartyHealthSliders[slot].value = serverCharacter.HitPoints;
             m_PartyNames[slot].text = GetPlayerName(serverCharacter);
 

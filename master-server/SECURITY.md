@@ -13,7 +13,7 @@ to deploy the master server safely. Items map to the SEG-* findings in the plan.
 - [ ] **Terminate TLS** in front of the server. Use the prod overlay:
       `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`.
       Caddy auto-provisions a Let's Encrypt cert for `MASTER_DOMAIN` and the base
-      `8000` port stops being published. Point the Unity client at `https://…`
+      `8001` port stops being published. Point the Unity client at `https://…`
       (`MasterServerConfig.baseUrl`). *(SEG-4)*
 - [ ] **Run a single worker** (`uvicorn … ` with no `--workers`, or `--workers 1`).
       The rate limiter is in-process; multiple workers multiply the effective limit.

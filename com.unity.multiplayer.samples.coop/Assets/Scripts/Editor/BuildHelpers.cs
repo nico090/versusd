@@ -15,6 +15,7 @@ internal static class BuildHelpers
 {
     const string k_MenuRoot = "Boss Room/Playtest Builds/";
     const string k_Build = k_MenuRoot + "Build";
+    const string k_BuildWindowsAndroid = k_MenuRoot + "Build Windows + Android";
     const string k_DeleteBuilds = k_MenuRoot + "Delete All Builds (keeps cache)";
     const string k_AllToggleName = k_MenuRoot + "Toggle All";
     const string k_MobileToggleName = k_MenuRoot + "Toggle Mobile";
@@ -90,6 +91,101 @@ internal static class BuildHelpers
             Menu.GetChecked(k_AndroidToggleName) ||
             Menu.GetChecked(k_MacOSToggleName) ||
             Menu.GetChecked(k_WindowsToggleName);
+    }
+
+    /// <summary>
+    /// Builds Windows and then Android, back to back, without touching the platform toggles.
+    /// </summary>
+    /// <remarks>
+    /// <para>The existing Build item is driven by the Toggle Windows / Toggle Android checkmarks,
+    /// which is right when the set of platforms varies but is three clicks and a piece of state to
+    /// remember when it never does. This one always means the same two, in the order they are
+    /// named.</para>
+    ///
+    /// <para>Two deliberate differences from Build:</para>
+    ///
+    /// <para><b>A failure does not cancel the other platform.</b> Build lets the first exception
+    /// out, so an Android SDK problem would throw away a Windows build that had already succeeded.
+    /// Here each is awaited on its own and the summary at the end says which ones came out — with
+    /// two targets and one of them Android, half a result is worth keeping.</para>
+    ///
+    /// <para><b>Only these two output folders are cleared</b>, not every build. Build deletes the
+    /// whole Playtest directory so a failure cannot leave a stale binary looking fresh; that is
+    /// worth keeping, but there is no reason for it to take an iOS or macOS build with it.</para>
+    /// </remarks>
+    [MenuItem(k_BuildWindowsAndroid, false, k_MenuGroupingBuild)]
+    static async void BuildWindowsAndAndroid()
+    {
+        if (string.IsNullOrEmpty(CloudProjectSettings.projectId) && !Menu.GetChecked(k_DisableProjectIDToggleName))
+        {
+            string errorMessage = $"Project ID was supposed to be setup and wasn't, make sure to set it up or disable project ID check with the [{k_DisableProjectIDToggleName}] menu";
+            EditorUtility.DisplayDialog("Error Custom Build", errorMessage, "ok");
+            throw new Exception(errorMessage);
+        }
+
+        s_NbBuildsDone = 0;
+        bool skipAutoDelete = Menu.GetChecked(k_SkipAutoDeleteToggleName);
+
+        var targets = new[]
+        {
+            (Target: BuildTarget.StandaloneWindows64, Extension: ".exe", Label: "Windows"),
+            (Target: BuildTarget.Android, Extension: ".apk", Label: "Android"),
+        };
+
+        SaveCurrentBuildTarget();
+
+        var succeeded = new List<string>();
+        var failed = new List<string>();
+
+        try
+        {
+            for (int i = 0; i < targets.Length; i++)
+            {
+                var platform = targets[i];
+
+                if (!skipAutoDelete)
+                {
+                    DeletePlatformBuild(platform.Target);
+                }
+
+                Debug.Log($"[Build] === {platform.Label} ({i + 1} of {targets.Length}) ===");
+
+                try
+                {
+                    await BuildPlayerUtilityAsync(platform.Target, platform.Extension, true);
+                    succeeded.Add(platform.Label);
+                }
+                catch (Exception e)
+                {
+                    // Logged rather than rethrown so the next platform still gets its turn.
+                    failed.Add(platform.Label);
+                    Debug.LogError($"[Build] {platform.Label} failed: {e.Message}");
+                }
+            }
+        }
+        finally
+        {
+            RestoreBuildTarget();
+        }
+
+        string summary = $"OK: {(succeeded.Count > 0 ? string.Join(", ", succeeded) : "ninguna")}\n" +
+                         $"Fallaron: {(failed.Count > 0 ? string.Join(", ", failed) : "ninguna")}\n\n" +
+                         BuildPathRootDirectory;
+
+        Debug.Log($"[Build] Done. {summary}");
+        EditorUtility.DisplayDialog(failed.Count == 0 ? "Builds finished" : "Builds finished with errors",
+            summary, "ok");
+    }
+
+    /// <summary>Clears one platform's output folder, leaving the other platforms' builds alone.</summary>
+    static void DeletePlatformBuild(BuildTarget target)
+    {
+        var directory = BuildPathDirectory(target.ToString());
+        if (Directory.Exists(directory))
+        {
+            Directory.Delete(directory, recursive: true);
+            Debug.Log($"[Build] cleared {directory}");
+        }
     }
 
     static void RestoreBuildTarget()

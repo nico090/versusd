@@ -37,6 +37,12 @@ namespace Unity.BossRoom.Gameplay.Actions
         /// </summary>
         private bool m_HitByAttack = false;
 
+        /// <summary>
+        /// How long the release facing is held. The projectile leaves on the same frame, so this
+        /// only has to outlast the release animation's first few frames.
+        /// </summary>
+        const float k_ReleaseFacingLockSeconds = 0.25f;
+
         public override bool OnStart(ServerCharacter serverCharacter)
         {
             // if we have an explicit target, make sure we're aimed at them.
@@ -126,6 +132,12 @@ namespace Unity.BossRoom.Gameplay.Actions
                 parent.clientCharacter.RpcStopChargingUp(GetPercentChargedUp());
                 if (!m_HitByAttack)
                 {
+                    // A charged shot is aimed when it is *released*, not when it was requested —
+                    // the player has been holding it for up to a second and re-aiming the whole
+                    // time, and Data.Direction is empty because ChargedActionInput had nothing to
+                    // put there. Plant the facing on the live aim so the release animation and the
+                    // arrow agree; LaunchProjectile resolves the same direction for the projectile.
+                    parent.Movement.LockFacing(parent.ResolveAimDirection(Data.Direction), k_ReleaseFacingLockSeconds);
                     LaunchProjectile(parent);
                 }
             }

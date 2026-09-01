@@ -32,14 +32,6 @@ namespace Unity.BossRoom.Gameplay.UI
                 BuildUI();
         }
 
-        void Start()
-        {
-            // Subtitle for the prefab path.
-            if (GetComponent<Canvas>() == null && m_CanvasGroup != null)
-                InjectSubtitle(m_CanvasGroup.transform,
-                    "Select a room from the list and click Join, or enter a room code");
-        }
-
         void SetEmptyLabel(string message)
         {
             if (m_EmptySessionListLabel == null) return;
@@ -77,13 +69,13 @@ namespace Unity.BossRoom.Gameplay.UI
             if (lobbies == null)
             {
                 if (m_EmptySessionListLabel) m_EmptySessionListLabel.gameObject.SetActive(true);
-                SetEmptyLabel("Could not reach master server.\nMake sure it's running, then hit Refresh.");
+                SetEmptyLabel("No se pudo contactar al servidor.\nComprueba que esté activo y pulsa Actualizar.");
                 return;
             }
 
             bool any = lobbies.Length > 0;
             if (m_EmptySessionListLabel) m_EmptySessionListLabel.gameObject.SetActive(!any);
-            if (!any) SetEmptyLabel("No public rooms right now.\nCreate one or enter a room code below.");
+            if (!any) SetEmptyLabel("No hay salas públicas ahora mismo.\nCrea una o escribe un código abajo.");
 
             foreach (var lobby in lobbies)
             {
@@ -163,7 +155,7 @@ namespace Unity.BossRoom.Gameplay.UI
             {
                 m_JoinCodeField.gameObject.SetActive(true);
                 m_JoinCodeField.contentType = InputField.ContentType.Password;
-                if (m_JoinCodeField.placeholder is Text ph) ph.text = "Password";
+                if (m_JoinCodeField.placeholder is Text ph) ph.text = "Contraseña";
             }
             else
             {
@@ -177,7 +169,7 @@ namespace Unity.BossRoom.Gameplay.UI
             m_JoinCodeField.text = string.Empty;
             m_JoinCodeField.contentType = InputField.ContentType.Standard;
             m_JoinCodeField.gameObject.SetActive(true);
-            if (m_JoinCodeField.placeholder is Text ph) ph.text = "Session code";
+            if (m_JoinCodeField.placeholder is Text ph) ph.text = "Código de sala";
         }
 
         // ── Procedural list row (used when no prefab prototype is wired) ──────
@@ -251,7 +243,7 @@ namespace Unity.BossRoom.Gameplay.UI
                 lockGO.transform.SetParent(row.transform, false);
                 var lockText = lockGO.AddComponent<Text>();
                 lockText.font = GetFont();
-                lockText.text = "[PRIVATE]";
+                lockText.text = "[PRIVADA]";
                 lockText.fontSize = 11;
                 lockText.color = new Color(0.95f, 0.75f, 0.25f);
                 lockText.alignment = TextAnchor.MiddleLeft;
@@ -280,28 +272,6 @@ namespace Unity.BossRoom.Gameplay.UI
             UpdateJoinCodeFieldForLobby(lobby);
         }
 
-        // ── Runtime injection (prefab path) ──────────────────────────────────
-
-        static void InjectSubtitle(Transform panelRoot, string text)
-        {
-            if (panelRoot.Find("__Subtitle")) return;
-            var go = new GameObject("__Subtitle");
-            go.transform.SetParent(panelRoot, false);
-            var t = go.AddComponent<Text>();
-            t.font = GetFont();
-            t.text = text;
-            t.fontSize = 12;
-            t.fontStyle = FontStyle.Italic;
-            t.color = new Color(0.6f, 0.78f, 0.95f);
-            t.alignment = TextAnchor.UpperCenter;
-            var r = go.GetComponent<RectTransform>();
-            r.anchorMin = new Vector2(0f, 1f);
-            r.anchorMax = new Vector2(1f, 1f);
-            r.pivot = new Vector2(0.5f, 1f);
-            r.anchoredPosition = new Vector2(0f, -6f);
-            r.sizeDelta = new Vector2(0f, 26f);
-        }
-
         // ── Self-build ────────────────────────────────────────────────────────
 
         void BuildUI()
@@ -328,19 +298,19 @@ namespace Unity.BossRoom.Gameplay.UI
             float y = 240f;
 
             // ── Header ────────────────────────────────────────────────────────
-            PlaceText(bg.transform, "Join a Room", y, 540f, 40f, 26, FontStyle.Bold, Color.white);
+            PlaceText(bg.transform, "Unirse a una sala", y, 540f, 40f, 26, FontStyle.Bold, Color.white);
             y -= 44f;
-            PlaceText(bg.transform, "Select a public room or enter a room code below", y, 540f, 24f, 12,
+            PlaceText(bg.transform, "Elige una sala pública o escribe un código abajo", y, 540f, 24f, 12,
                 FontStyle.Italic, new Color(0.6f, 0.7f, 0.85f));
             y -= 30f;
             MakeDivider(bg.transform, y);
             y -= 16f;
 
-            // ── "Public Rooms" label + Refresh button ─────────────────────────
-            PlaceText(bg.transform, "Public Rooms", y, -60f, 22f, 13, FontStyle.Bold, new Color(0.75f, 0.75f, 0.75f));
+            // ── "Salas públicas" label + Refresh button ─────────────────────────
+            PlaceText(bg.transform, "Salas públicas", y, -60f, 22f, 13, FontStyle.Bold, new Color(0.75f, 0.75f, 0.75f));
             // Position: -60 offset = left of center
 
-            var refreshBtn = MakeSmallButton(bg.transform, "Refresh", new Vector2(225f, y), OnRefresh);
+            var refreshBtn = MakeSmallButton(bg.transform, "Actualizar", new Vector2(225f, y), OnRefresh);
             y -= 30f;
 
             // ── Scroll view for room list ─────────────────────────────────────
@@ -353,7 +323,7 @@ namespace Unity.BossRoom.Gameplay.UI
             emptyGO.transform.SetParent(bg.transform, false);
             var emptyText = emptyGO.AddComponent<Text>();
             emptyText.font = GetFont();
-            emptyText.text = "No public rooms found. Hit Refresh or enter a code below.";
+            emptyText.text = "No hay salas públicas. Pulsa Actualizar o escribe un código.";
             emptyText.fontSize = 13;
             emptyText.fontStyle = FontStyle.Italic;
             emptyText.color = new Color(0.5f, 0.5f, 0.5f);
@@ -369,14 +339,14 @@ namespace Unity.BossRoom.Gameplay.UI
             y -= 16f;
 
             // ── Session code label ────────────────────────────────────────────
-            PlaceText(bg.transform, "or enter a room code directly:", y, 520f, 22f, 12,
+            PlaceText(bg.transform, "o escribe un código de sala:", y, 520f, 22f, 12,
                 FontStyle.Normal, new Color(0.65f, 0.65f, 0.65f));
             y -= 26f;
-            m_JoinCodeField = MakeInputField(bg.transform, "Session code", ref y, false, 520f);
+            m_JoinCodeField = MakeInputField(bg.transform, "Código de sala", ref y, false, 520f);
 
             // ── Password field (hidden until private room selected) ───────────
             float pwY = y;
-            var pwField = MakeInputField(bg.transform, "Password", ref pwY, true, 520f);
+            var pwField = MakeInputField(bg.transform, "Contraseña", ref pwY, true, 520f);
             pwField.gameObject.SetActive(false);
             m_JoinCodeField.onValueChanged.AddListener(_ =>
             {
@@ -389,9 +359,9 @@ namespace Unity.BossRoom.Gameplay.UI
             y -= 16f;
 
             // ── Action buttons ────────────────────────────────────────────────
-            MakeButton(bg.transform, "Quick Join", new Vector2(-135f, y), OnQuickJoinClicked,
+            MakeButton(bg.transform, "Partida rápida", new Vector2(-135f, y), OnQuickJoinClicked,
                 new Color(0.22f, 0.38f, 0.22f), 180f, 44f);
-            m_JoinSessionButton = MakeButton(bg.transform, "Join Selected", new Vector2(135f, y), OnJoinButtonPressed,
+            m_JoinSessionButton = MakeButton(bg.transform, "Unirse a la sala", new Vector2(135f, y), OnJoinButtonPressed,
                 new Color(0.18f, 0.38f, 0.76f), 200f, 44f);
             m_JoinSessionButton.interactable = false;
         }

@@ -13,6 +13,8 @@ namespace Unity.BossRoom.Gameplay.Messages
         // Death attribution — populated when NewLifeState is Dead or Fainted
         public ulong KillerClientId;
         public bool KillerIsNpc;
+        /// <summary>Display name of the killer, for the kill feed. Empty when there is no attacker.</summary>
+        public string KillerName;
         public ulong VictimClientId;
         public bool VictimIsNpc;
     }

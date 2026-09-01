@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 5a0384d8bfbbb334299afe8f04b3e7fa
+labels:
+- Metal
+- Plates
+timeCreated: 1429689610
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 35362
+  packageName: Yughues Free N
+  packageVersion: 1.1
+  assetPath: Assets/YughuesFreeNormalMaps/Materials/M_YFNMap_Ripple2.mat
+  uploadId: 750798

@@ -106,8 +106,13 @@ namespace Unity.BossRoom.Gameplay.UI
             var bgGO = new GameObject("Background");
             bgGO.transform.SetParent(canvasGO.transform, false);
             var bgImage = bgGO.AddComponent<Image>();
-            bgImage.color = new Color(0f, 0f, 0f, 0.45f);
+            // Skinned like the rest of the code-built HUD, so the hint card and the match HUD
+            // read as one interface instead of two debug overlays.
+            bgImage.sprite = HudSkin.PanelSprite;
+            bgImage.type = Image.Type.Sliced;
+            bgImage.color = HudSkin.PanelColor;
             bgImage.raycastTarget = false;
+            HudSkin.AddBorder(bgGO);
 
             m_Background = bgGO.GetComponent<RectTransform>();
             m_Background.anchorMin = Vector2.zero;
@@ -119,7 +124,7 @@ namespace Unity.BossRoom.Gameplay.UI
             textGO.transform.SetParent(m_Background, false);
             m_Text = textGO.AddComponent<Text>();
             m_Text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            m_Text.color = Color.white;
+            m_Text.color = HudSkin.TextPrimary;
             m_Text.alignment = TextAnchor.UpperLeft;
             m_Text.raycastTarget = false;
             m_Text.supportRichText = true;

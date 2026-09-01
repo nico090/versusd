@@ -40,7 +40,7 @@ el DS no salen del mismo build, las SyncList / escenas se desincronizan.
  3. VERIFICAR QUE EL MASTER ESTA SANO
 ------------------------------------------------------------------------
     docker compose -f master-server/docker-compose.yml ps
-    curl http://127.0.0.1:8000/docs
+    curl http://127.0.0.1:8001/docs
 
 Tiene que responder 200. Si el contenedor esta caido (Exited):
     docker compose -f master-server/docker-compose.yml up -d

@@ -1,0 +1,320 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 5 /Kids [4 0 R 6 0 R 8 0 R 10 0 R 12 0 R] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 14 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 519 >>
+stream
+BT /F2 46 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 560 Tm (VersusD) Tj ET
+BT /F1 17 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 504 Tm (Game Design Document) Tj ET
+0.15 0.72 0.85 RG 1.2 w 62 467 m 533 467 l S
+BT /F1 11 Tf 0.42 0.46 0.54 rg 1 0 0 1 62 437 Tm (Deathmatch PvPvE de arena para hasta 8 jugadores) Tj ET
+BT /F1 11 Tf 0.42 0.46 0.54 rg 1 0 0 1 62 419 Tm (Unity 6 - URP - Mirror - Windows / Android / iOS) Tj ET
+BT /F1 9 Tf 0.42 0.46 0.54 rg 1 0 0 1 62 386 Tm (Los valores de este documento se extrajeron del codigo fuente.) Tj ET
+
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 14 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 4968 >>
+stream
+BT /F2 19 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 774 Tm (1. Concepto) Tj ET
+0.15 0.72 0.85 RG 1.2 w 62 755 m 533 755 l S
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 733 Tm (VersusD es un deathmatch PvPvE de arena, en tercera persona y vista cenital, para hasta) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 719 Tm (ocho jugadores. Una partida dura 5 minutos y gana quien mas puntos acumule.) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 701 Tm (La premisa de diseno es que el jugador siempre tenga mas de una forma de sumar, y que) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 687 Tm (esas formas compitan por su tiempo. No hay una ruta optima: hay una eleccion sobre donde) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 673 Tm (gastar los proximos treinta segundos.) Tj ET
+BT /F2 12 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 651 Tm (Pilares) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 632 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 632 Tm (Todos contra todos. Sin equipos, sin alianzas mecanicas.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 616 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 616 Tm (Varias economias de puntos a la vez: jugadores, imps, boss y control de zonas.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 600 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 600 Tm (Lectura instantanea. Cuatro clases con siluetas y colores separados; cada efecto del) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 586 Tm (mapa dice de que color es y que hace.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 570 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 570 Tm (Partidas cortas. Cinco minutos es una unidad de tiempo que se acepta sin planificar.) Tj ET
+BT /F2 19 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 538 Tm (2. Bucle de juego) Tj ET
+0.15 0.72 0.85 RG 1.2 w 62 519 m 533 519 l S
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 497 Tm (Menu principal -> seleccion de personaje -> partida -> tabla final -> menu o revancha.) Tj ET
+BT /F2 12 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 475 Tm (Dentro de la partida) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 457 Tm (1.) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 82 457 Tm (Elegis clase y aparecen todos en la arena.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 441 Tm (2.) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 82 441 Tm (Se mata gente e imps para sumar. Los imps son puntos seguros pero chicos; los) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 82 427 Tm (jugadores valen mucho mas y devuelven el golpe.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 411 Tm (3.) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 82 411 Tm (Aparecen zonas de efecto en el piso. Decidis si vale desviarte por una.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 395 Tm (4.) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 82 395 Tm (En los ultimos 2 minutos los kills de jugador valen doble y aparece el boss, a la) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 82 381 Tm (vez.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 365 Tm (5.) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 82 365 Tm (Se acaba el tiempo y se muestra la tabla final ordenada.) Tj ET
+BT /F2 12 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 345 Tm (La tension central) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 326 Tm (El doble de puntos y el boss llegan en el mismo momento a proposito. No alcanza el) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 312 Tm (tiempo para las dos cosas, asi que el final de cada partida es una apuesta: cazar gente) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 298 Tm (mientras vale el doble, o comprometerse con un objetivo que otros van a querer robarte.) Tj ET
+BT /F2 19 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 264 Tm (3. Puntaje) Tj ET
+0.15 0.72 0.85 RG 1.2 w 62 245 m 533 245 l S
+0.93 0.95 0.98 rg 56 218 483 18 re f
+BT /F2 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 223 Tm (Accion) Tj ET
+BT /F2 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 297 223 Tm (Puntos) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 205 Tm (Matar a un jugador) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 297 205 Tm (5) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 187 Tm (Matar a un jugador \(ultimos minutos\)) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 297 187 Tm (10) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 169 Tm (Matar un imp) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 297 169 Tm (1) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 151 Tm (Rematar al boss) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 297 151 Tm (12) Tj ET
+BT /F2 12 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 121 Tm (Reglas) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 103 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 103 Tm (Morir no resta puntos. El costo de morir es el tiempo: 5 segundos de respawn.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 87 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 87 Tm (Al reaparecer hay 2 segundos de invulnerabilidad, que se cancelan apenas usas una) Tj ET
+
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 14 0 R >> >> /Contents 9 0 R >>
+endobj
+9 0 obj
+<< /Length 6044 >>
+stream
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 780 Tm (accion ofensiva.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 764 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 764 Tm (Una muerte sin atacante atribuible \(el boss, un imp, el entorno, una zona toxica, o) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 750 Tm (vos mismo\) no le da puntos a nadie.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 734 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 734 Tm (Solo el que da el golpe final al boss cobra. Es a proposito: robarlo es una jugada.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 718 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 718 Tm (Los empates se desempatan por kills de jugador, no por total de puntos.) Tj ET
+BT /F2 19 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 686 Tm (4. Clases) Tj ET
+0.15 0.72 0.85 RG 1.2 w 62 667 m 533 667 l S
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 645 Tm (Cuatro clases. Ninguna gana sola; cual conviene depende de quien mas este jugando.) Tj ET
+0.93 0.95 0.98 rg 56 622 483 18 re f
+BT /F2 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 627 Tm (Clase) Tj ET
+BT /F2 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 179 627 Tm (Vida) Tj ET
+BT /F2 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 296 627 Tm (Velocidad) Tj ET
+BT /F2 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 413 627 Tm (Rol) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 609 Tm (Tank) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 179 609 Tm (160) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 296 609 Tm (4.0) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 413 609 Tm (Aguante y control) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 591 Tm (Rogue) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 179 591 Tm (150) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 296 591 Tm (5.95) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 413 591 Tm (Movilidad y apertura) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 573 Tm (Mage) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 179 573 Tm (140) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 296 573 Tm (6.0) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 413 573 Tm (Area y soporte) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 555 Tm (Archer) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 179 555 Tm (135) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 296 555 Tm (4.5) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 413 555 Tm (Distancia) Tj ET
+BT /F2 12 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 525 Tm (Notas de balance) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 506 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 506 Tm (El Tank tiene un multiplicador de dano de clase de 0.80 sobre TODOS sus ataques: esta) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 492 Tm (hecho para absorber golpes, no para cerrar peleas.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 476 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 476 Tm (El Archer es el mas fragil y el mas lento a proposito: ya gana la distancia.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 460 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 460 Tm (La movilidad del Rogue vive en su dash, un recurso con cooldown que el rival puede) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 446 Tm (ver venir, y no en una ventaja de velocidad permanente sin contra.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 430 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 430 Tm (El unico control duro del juego es el Frost Nova del Tank, con 16 s de cooldown) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 416 Tm (minimo.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 400 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 400 Tm (El sigilo del Rogue tiene tope de 8 s y 12 s de cooldown: uno por pelea.) Tj ET
+BT /F2 19 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 368 Tm (5. Zonas del mapa) Tj ET
+0.15 0.72 0.85 RG 1.2 w 62 349 m 533 349 l S
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 327 Tm (Cada tanto aparece un circulo de efecto en el piso. Son la fuente principal de) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 313 Tm (movimiento voluntario: dan una razon para dejar una posicion buena.) Tj ET
+0.93 0.95 0.98 rg 56 290 483 18 re f
+BT /F2 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 295 Tm (Zona) Tj ET
+BT /F2 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 219 295 Tm (Efecto) Tj ET
+BT /F2 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 376 295 Tm (Duracion) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 277 Tm (Verde) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 219 277 Tm (+14 vida/s) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 376 277 Tm (Mientras estes dentro) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 259 Tm (Roja) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 219 259 Tm (-12 vida/s) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 376 259 Tm (Mientras estes dentro) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 241 Tm (Azul) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 219 241 Tm (Velocidad x1.45) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 376 241 Tm (30 s) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 223 Tm (Violeta) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 219 223 Tm (Dano x2) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 376 223 Tm (30 s) Tj ET
+BT /F2 12 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 193 Tm (Por que dos duran y dos no) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 175 Tm (El azul y el violeta se los lleva puestos el jugador al salir. El verde y el rojo solo) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 161 Tm (actuan mientras estas adentro. Eso convierte a dos de ellas en algo que vas a buscar y) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 147 Tm (te llevas, y a la verde en un lugar disputado y a la roja en un obstaculo del terreno,) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 133 Tm (en vez de en cuatro variantes de lo mismo.) Tj ET
+BT /F2 12 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 111 Tm (Parametros) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 92 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 92 Tm (Aparecen cada 18 s con +/-7 s de variacion, para que el mapa no lata como un) Tj ET
+
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 14 0 R >> >> /Contents 11 0 R >>
+endobj
+11 0 obj
+<< /Length 5374 >>
+stream
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 780 Tm (metronomo.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 764 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 764 Tm (Duran 25 s, con maximo 3 simultaneas.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 748 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 748 Tm (Radio 4.5, separadas al menos 11 para que nunca se fusionen en una mancha.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 732 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 732 Tm (La roja es mas rara \(20%\): es la unica puramente mala, y a probabilidad pareja seria) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 718 Tm (una razon para no moverse, que es lo contrario de para que existen.) Tj ET
+BT /F2 19 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 686 Tm (6. Enemigos) Tj ET
+0.15 0.72 0.85 RG 1.2 w 62 667 m 533 667 l S
+0.93 0.95 0.98 rg 56 640 483 18 re f
+BT /F2 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 645 Tm (Enemigo) Tj ET
+BT /F2 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 219 645 Tm (Vida) Tj ET
+BT /F2 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 376 645 Tm (Rol) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 627 Tm (Imp) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 219 627 Tm (60) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 376 627 Tm (Puntos seguros, presion ambiental) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 609 Tm (Vandal Imp) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 219 609 Tm (110) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 376 609 Tm (Molestia a distancia) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 591 Tm (Boss) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 219 591 Tm (450) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 376 591 Tm (Objetivo de final de partida) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 565 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 565 Tm (Los NPC tienen una velocidad fija baja \(3\) para que siempre se los pueda kitear: los) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 551 Tm (heroes corren entre 4 y 6.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 535 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 535 Tm (El boss aparece con 120 s restantes, el mismo momento en que arranca el doble de) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 521 Tm (puntos.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 505 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 505 Tm (Se le duplico la vida y se le bajaron los puntos a la vez, a proposito: deberia ser) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 491 Tm (una pelea que la sala decide dar junta, no una moneda que levanta el mas rapido.) Tj ET
+BT /F2 19 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 459 Tm (7. Bots) Tj ET
+0.15 0.72 0.85 RG 1.2 w 62 440 m 533 440 l S
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 418 Tm (Los bots ocupan asientos vacios y juegan como jugadores: eligen clase en la seleccion,) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 404 Tm (aparecen en la tabla y sus kills cuentan. Existen para que una sala a medio llenar siga) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 390 Tm (siendo una partida.) Tj ET
+BT /F2 12 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 368 Tm (Personalidad y habilidad son ejes separados) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 349 Tm (La personalidad decide COMO juega \(Brawler, Sniper, Opportunist, Guardian, Wildcard: a) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 335 Tm (que distancia pelea, cuanto persigue, cuando se retira\). La dificultad decide CUAN BIEN) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 321 Tm (lo hace \(tiempo de reaccion, error de punter\355a, uso de cooldowns\). Asi "un) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 307 Tm (francotirador" y "un buen jugador" son perillas independientes.) Tj ET
+BT /F2 12 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 285 Tm (Reglas de honestidad) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 267 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 267 Tm (Un bot nunca usa un nombre que ya este en la sala.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 251 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 251 Tm (La tabla final los marca con la etiqueta BOT: juegan bajo nombres comunes, y sin eso) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 237 Tm (la tabla invitaria a compararse contra rivales que no fueron personas.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 221 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 221 Tm (Quedan excluidos del reporte de estadisticas ranked al master server.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 205 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 205 Tm (Tienen pausas deliberadas: un tiempo minimo entre ataques y descansos periodicos. Un) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 191 Tm (bot que ataca en el frame exacto en que sale el cooldown gana intercambios que) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 177 Tm (deberia perder, y tres que nunca paran no es una pelea dificil sino agotadora.) Tj ET
+BT /F2 19 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 145 Tm (8. Punter\355a asistida) Tj ET
+0.15 0.72 0.85 RG 1.2 w 62 126 m 533 126 l S
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 104 Tm (El juego asiste la punteria, pero solo dentro de lo que el jugador ya estaba apuntando.) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 90 Tm (Las reglas, en orden de prioridad:) Tj ET
+
+endstream
+endobj
+12 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 14 0 R >> >> /Contents 13 0 R >>
+endobj
+13 0 obj
+<< /Length 4820 >>
+stream
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 780 Tm (1.) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 82 780 Tm (Si haces click sobre un objetivo, le pega a ese. Es una eleccion explicita, no una) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 82 766 Tm (adivinanza, y gana siempre.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 750 Tm (2.) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 82 750 Tm (Si hay un NPC a quemarropa \(3.5 m\), le pega al NPC aunque haya un jugador cerca:) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 82 736 Tm (ese imp es el que te esta pegando.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 720 Tm (3.) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 82 720 Tm (Si no, prefiere jugadores sobre NPC, y entre candidatos parecidos, el mas cercano.) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 704 Tm (El cono de asistencia es de 12 grados. Deliberadamente angosto: la asistencia deberia) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 690 Tm (regalar los ultimos grados, no elegir el objetivo por vos.) Tj ET
+BT /F2 19 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 656 Tm (9. Arquitectura tecnica) Tj ET
+0.15 0.72 0.85 RG 1.2 w 62 637 m 533 637 l S
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 615 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 615 Tm (Unity 6000.0.52 con URP. Red sobre Mirror \(portado desde Netcode for GameObjects\).) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 599 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 599 Tm (Servidor autoritativo. El cliente pide acciones; el servidor decide dano, muerte,) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 585 Tm (puntaje y efectos de zona. El cliente solo dibuja.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 569 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 569 Tm (Servidor dedicado headless, con relay \(LRM\) y un master server propio para lobbies,) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 555 Tm (login y estadisticas.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 539 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 539 Tm (Plataformas: Windows, Android e iOS desde el mismo proyecto.) Tj ET
+BT /F2 12 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 519 Tm (Convencion importante del proyecto) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 500 Tm (Los numeros de balance viven en CODIGO, no en ScriptableObjects. Un asset editado en) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 486 Tm (disco puede ser reemplazado por la copia cacheada del Editor al armar el build del) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 472 Tm (servidor dedicado, asi que un valor que tiene que ser identico en cliente y servidor no) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 62 458 Tm (puede vivir en un asset. De ahi DeathmatchRules, HeroBalance, NpcBalance y ZoneRules.) Tj ET
+BT /F2 19 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 424 Tm (10. Direccion de arte) Tj ET
+0.15 0.72 0.85 RG 1.2 w 62 405 m 533 405 l S
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 383 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 383 Tm (Low-poly estilizado con shader toon propio \(SG_Toon\): sombras coloreadas, rim light y) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 369 Tm (color plano en vez de PBR.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 353 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 353 Tm (Paleta de clase unica y compartida \(HeroAccentPalette\): el mismo color manda en la) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 339 Tm (armadura, el arma, el retrato y los iconos de la barra. Cambiar una clase de color es) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 325 Tm (editar una linea.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 309 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 309 Tm (Cuatro tonos bien separados en la rueda \(carmesi, azul electrico, oro, violeta\)) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 295 Tm (porque la restriccion es de lectura, no de gusto: en un todos contra todos hay que) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 281 Tm (distinguir cuatro personajes al instante y a distancia.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 265 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 265 Tm (Cabezas de personaje del pack KayKit \(CC0\); las once combinaciones son distintas) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 251 Tm (entre si.) Tj ET
+BT /F2 10.5 Tf 0.15 0.72 0.85 rg 1 0 0 1 62 235 Tm (\267) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 235 Tm (UI construida por codigo desde un kit compartido \(UIKit + ToonMenuSkin\), con iconos) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 221 Tm (generados proceduralmente como campos de distancia. Nada de sprites pintados a mano) Tj ET
+BT /F1 10 Tf 0.09 0.10 0.14 rg 1 0 0 1 76 207 Tm (que se desincronicen del resto.) Tj ET
+
+endstream
+endobj
+14 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 15
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000141 00000 n 
+0000000238 00000 n 
+0000000375 00000 n 
+0000000945 00000 n 
+0000001082 00000 n 
+0000006102 00000 n 
+0000006239 00000 n 
+0000012335 00000 n 
+0000012474 00000 n 
+0000017901 00000 n 
+0000018040 00000 n 
+0000022913 00000 n 
+trailer
+<< /Size 15 /Root 1 0 R >>
+startxref
+23016
+%%EOF

@@ -18,8 +18,8 @@ Public lobby search always shows only dedicated server rooms. Dedicated game ser
 ```mermaid
 graph TB
     subgraph VPS["VPS (Docker)"]
-        MS["Master Server\nFastAPI :8000"]
-        MDB["MongoDB :27017"]
+        MS["Master Server\nFastAPI :8001"]
+        MDB["MongoDB :27018"]
         DS["/var/run/docker.sock"]
         GS1["Game Server A\nspawned on-demand\n:9003/udp"]
         GS2["Game Server B\nspawned on-demand\n:9017/udp"]
@@ -155,7 +155,7 @@ sequenceDiagram
 - VPS with Ubuntu 22.04+ (2 vCPU minimum, 2 GB RAM minimum)
 - Docker + Docker Compose installed
 - Ports open in firewall:
-  - **8000/TCP** — Master server REST API
+  - **8001/TCP** — Master server REST API
   - **9000–9999/UDP** — Game server range (one port per concurrent match)
 
 ### 1. Clone and configure
@@ -198,18 +198,18 @@ docker compose up -d
 docker compose logs -f master-server
 ```
 
-Verify: `curl http://localhost:8000/docs`
+Verify: `curl http://localhost:8001/docs`
 
 ### 4. Test on-demand spawning
 
 ```bash
 # Create a user and get a token
-curl -X POST http://localhost:8000/auth/register \
+curl -X POST http://localhost:8001/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username":"test","password":"test123"}'
 
 # Create a dedicated room (this spawns a container)
-curl -X POST http://localhost:8000/lobby/dedicated \
+curl -X POST http://localhost:8001/lobby/dedicated \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"name":"TestRoom","max_players":4}'
@@ -223,7 +223,7 @@ Expected: a `gs-XXXXXXXX` container appears, then disappears when the game ends.
 ### 5. Open firewall (UFW example)
 
 ```bash
-ufw allow 8000/tcp
+ufw allow 8001/tcp
 ufw allow 9000:9999/udp
 ufw reload
 ```
@@ -284,14 +284,14 @@ if (Application.isBatchMode)
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SECRET_KEY` | `change-me-in-prod` | JWT signing key |
-| `MONGO_URL` | `mongodb://localhost:27017` | MongoDB connection string |
+| `MONGO_URL` | `mongodb://localhost:27018` | MongoDB connection string |
 | `DB_NAME` | `versused` | MongoDB database name |
 | `VPS_PUBLIC_IP` | `127.0.0.1` | Public IP sent to players to connect |
 | `GAME_SERVER_IMAGE` | `versused-game-server` | Docker image name for game servers |
 | `GAME_SERVER_PORT_START` | `9000` | Start of UDP port range |
 | `GAME_SERVER_PORT_END` | `9999` | End of UDP port range |
 | `DOCKER_NETWORK` | `master-server_versused` | Docker network name for spawned containers |
-| `MASTER_SERVER_INTERNAL_URL` | `http://master-server:8000` | URL used by containers to reach the master |
+| `MASTER_SERVER_INTERNAL_URL` | `http://master-server:8001` | URL used by containers to reach the master |
 
 ### Game Server (injected by master server at spawn time)
 | Variable | Description |

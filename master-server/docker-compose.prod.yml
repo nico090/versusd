@@ -19,7 +19,7 @@ services:
     environment:
       - MASTER_DOMAIN=${MASTER_DOMAIN:?set MASTER_DOMAIN in .env}
     command: >
-      caddy reverse-proxy --from ${MASTER_DOMAIN} --to master-server:8000
+      caddy reverse-proxy --from ${MASTER_DOMAIN} --to master-server:8001
     volumes:
       - caddy_data:/data
       - caddy_config:/config
@@ -48,7 +48,7 @@ services:
       - versused
 
   master-server:
-    # Stop exposing 8000 publicly — Caddy is the only ingress now.
+    # Stop exposing 8001 publicly — Caddy is the only ingress now.
     ports: []
     # Drop the raw socket mount; talk to the daemon through the proxy instead.
     volumes: []

@@ -21,18 +21,18 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env          # then edit SECRET_KEY
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 Requires a running MongoDB reachable at `MONGO_URL` (default
-`mongodb://localhost:27017`). For a one-shot local instance:
-`docker run -d -p 27017:27017 --name mongo mongo:7`. In production `docker compose
+`mongodb://localhost:27018`). For a one-shot local instance:
+`docker run -d -p 27018:27018 --name mongo mongo:7 mongod --port 27018`. In production `docker compose
 up` starts both the master server and a `mongo` service automatically.
 
-Interactive docs: http://localhost:8000/docs
+Interactive docs: http://localhost:8001/docs
 
 The Unity client points at this via `MasterServerConfig.baseUrl`
-(default `http://localhost:8000`).
+(default `http://localhost:8001`).
 
 ## Endpoints
 

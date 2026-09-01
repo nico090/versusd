@@ -1,3 +1,4 @@
+using UnityEngine;
 using System;
 using System.Collections.Generic;
 using UnityEngine.Assertions;
@@ -42,9 +43,23 @@ namespace Unity.BossRoom.Infrastructure
 
             foreach (var messageHandler in m_MessageHandlers)
             {
-                if (messageHandler != null)
+                if (messageHandler == null)
+                {
+                    continue;
+                }
+
+                // Isolated per handler. Without this the loop is only as reliable as its least
+                // careful subscriber: one that throws takes the message away from every subscriber
+                // behind it, and the failure surfaces as unrelated logic silently not running.
+                // A publisher has no way to know who is listening, so it cannot be its job to
+                // guarantee they all behave — but it can guarantee they all get told.
+                try
                 {
                     messageHandler.Invoke(message);
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogException(e);
                 }
             }
         }

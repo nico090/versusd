@@ -1,4 +1,5 @@
 using System;
+using Unity.BossRoom.Gameplay.Configuration;
 using Unity.BossRoom.Gameplay.GameplayObjects;
 using Unity.BossRoom.Gameplay.GameplayObjects.Character;
 using Unity.BossRoom.Infrastructure;
@@ -41,12 +42,16 @@ namespace Unity.BossRoom.Gameplay.Actions
                 Data.Position = targetPos;
             }
 
-            // turn to face our target!
-            serverCharacter.physicsWrapper.Transform.LookAt(targetPos);
+            // Turn to face our target, and hold it: the beam is resolved on a timer, so without
+            // the lock the character visibly swings back to their walk direction while the FX is
+            // still travelling. Held for the whole flight rather than just the exec window.
+            Vector3 toTarget = targetPos - serverCharacter.physicsWrapper.Transform.position;
 
             // figure out how long the pretend-projectile will be flying to the target
             float distanceToTargetPos = Vector3.Distance(targetPos, serverCharacter.physicsWrapper.Transform.position);
             m_TimeUntilImpact = Config.ExecTimeSeconds + (distanceToTargetPos / Config.Projectiles[0].Speed_m_s);
+
+            serverCharacter.Movement.LockFacing(toTarget, m_TimeUntilImpact);
 
             serverCharacter.serverAnimationHandler.SetTrigger(Config.Anim);
             // tell clients to visualize this action
@@ -75,7 +80,10 @@ namespace Unity.BossRoom.Gameplay.Actions
                 m_ImpactedTarget = true;
                 if (m_DamageableTarget != null)
                 {
-                    m_DamageableTarget.ReceiveHitPoints(clientCharacter, -Config.Projectiles[0].Damage);
+                    // PvP balance pass: the Mage's bolt hits for -15%. Its radius is untouched —
+                    // the area is the class's role.
+                    m_DamageableTarget.ReceiveHitPoints(clientCharacter,
+                        -HeroBalance.ScaleDamage(clientCharacter, Config.Logic, Config.Projectiles[0].Damage));
 
                     // Area damage on impact (when Config.Radius > 0): splash onto other nearby
                     // foes so the bolt isn't strictly single-target and combat feels punchier.
@@ -108,6 +116,7 @@ namespace Unity.BossRoom.Gameplay.Actions
         void ApplySplashDamage(ServerCharacter caster, Vector3 center, ulong primaryTargetId)
         {
             int splash = Config.SplashDamage > 0 ? Config.SplashDamage : Config.Projectiles[0].Damage;
+            splash = HeroBalance.ScaleDamage(caster, Config.Logic, splash);
             int mask = LayerMask.GetMask("PCs", "NPCs");
             int num = Physics.OverlapSphereNonAlloc(center, Config.Radius, s_SplashHits, mask);
 

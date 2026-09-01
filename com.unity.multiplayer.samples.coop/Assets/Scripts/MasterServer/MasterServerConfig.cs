@@ -5,8 +5,8 @@ namespace Unity.BossRoom.MasterServer
     [CreateAssetMenu(fileName = "MasterServerConfig", menuName = "BossRoom/MasterServerConfig")]
     public class MasterServerConfig : ScriptableObject
     {
-        [Tooltip("Base URL of the Master Server, e.g. http://localhost:8000")]
-        public string baseUrl = "http://localhost:8000";
+        [Tooltip("Base URL of the Master Server, e.g. http://localhost:8001")]
+        public string baseUrl = "http://localhost:8001";
 
         // NOTE: the LRM relay endpoint (host IP + UDP port) is NOT configured here. It lives on the
         // LightReflectiveMirrorTransport component in Startup.unity (serverIP / serverPort), which is

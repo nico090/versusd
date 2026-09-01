@@ -32,7 +32,7 @@ namespace VersusD.EditorTools
             plist.ReadFromFile(plistPath);
             var root = plist.root;
 
-            // ATS: el master server (http://IP:8000) y el endpoint del relay son HTTP plano
+            // ATS: el master server (http://IP:8001) y el endpoint del relay son HTTP plano
             // sobre IP, sin certificado. iOS los tira abajo salvo que se declare la excepcion.
             // OJO: no agregar aca NSAllowsLocalNetworking ni las otras claves granulares.
             // Si alguna de ellas esta presente, iOS 10+ ignora NSAllowsArbitraryLoads y solo

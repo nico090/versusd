@@ -18,7 +18,7 @@ Material:
   m_LightmapFlags: 2
   m_EnableInstancingVariants: 1
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
+  m_CustomRenderQueue: 2000
   stringTagMap: {}
   disabledShaderPasses:
   - MOTIONVECTORS
@@ -47,7 +47,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 06001964b91fc3c45b7d1f7087118e07, type: 3}
+        m_Texture: {fileID: 2800000, guid: f4a9e342681bf644e9edd95eb478aedf, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
@@ -98,7 +98,7 @@ Material:
     - _ZWrite: 1
     m_Colors:
     - _AmbientColor: {r: 1, g: 1, b: 1, a: 1}
-    - _Color: {r: 0.36078432, g: 0.36078432, b: 0.36078432, a: 1}
+    - _Color: {r: 0.06537023, g: 0.122641504, b: 0.078198805, a: 1}
     - _EmissionColor: {r: 0.21176471, g: 0.21176471, b: 0.21176471, a: 1}
     - _RimColor: {r: 4, g: 4, b: 4, a: 1}
     - _SpecularColor: {r: 7.2156863, g: 7.2156863, b: 7.2156863, a: 1}

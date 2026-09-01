@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 3eff2e8a8d9b99046ab1b03085f61a63
+labels:
+- Metal
+- Plates
+timeCreated: 1429689612
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 35362
+  packageName: Yughues Free N
+  packageVersion: 1.1
+  assetPath: Assets/YughuesFreeNormalMaps/Materials/M_YFNMap_FractalDiamond.mat
+  uploadId: 750798

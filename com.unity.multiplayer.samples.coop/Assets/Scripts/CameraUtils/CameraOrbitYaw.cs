@@ -31,6 +31,56 @@ namespace Unity.BossRoom.CameraUtils
         /// </summary>
         public static float Yaw { get; private set; } = float.NaN;
 
+        /// <summary>
+        /// Converts a 2D input — a stick, a joystick, a drag out of a skill button — into a
+        /// world-space direction on the ground plane, in the camera's basis, so "up" always means
+        /// "away from the camera". Returns zero for a degenerate input or before a camera exists.
+        ///
+        /// <para>Lives here rather than in each caller because the same basis has to serve movement
+        /// and aiming: if the two ever derived "forward" differently, walking and shooting would
+        /// disagree about which way the stick was pointing.</para>
+        /// </summary>
+        public static Vector3 ToWorldDirection(Vector2 input)
+        {
+            Vector3 forward;
+
+            float yaw = Yaw;
+            if (!float.IsNaN(yaw))
+            {
+                forward = Quaternion.AngleAxis(yaw, Vector3.up) * Vector3.forward;
+            }
+            else
+            {
+                // No camera resolved yet: fall back to the rendered one.
+                var camera = Camera.main;
+                if (camera == null)
+                {
+                    return Vector3.zero;
+                }
+
+                forward = camera.transform.forward;
+                forward.y = 0f;
+                // If it looks nearly straight down, use its "up" projected on the ground so the
+                // direction stays stable.
+                if (forward.sqrMagnitude < 0.001f)
+                {
+                    forward = camera.transform.up;
+                    forward.y = 0f;
+                }
+
+                if (forward.sqrMagnitude < 0.001f)
+                {
+                    return Vector3.zero;
+                }
+
+                forward.Normalize();
+            }
+
+            Vector3 right = Vector3.Cross(Vector3.up, forward);
+            Vector3 result = forward * input.y + right * input.x;
+            return result.sqrMagnitude > 0.000001f ? result.normalized : Vector3.zero;
+        }
+
         CinemachineOrbitalFollow m_OrbitalFollow;
         Camera m_Camera;
 

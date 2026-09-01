@@ -31,20 +31,32 @@ namespace Unity.BossRoom.Gameplay.UI
 
         void Start()
         {
-            // Always inject a subtitle so the player knows their role,
-            // whether the UI came from the prefab or was self-built.
             if (GetComponent<Canvas>() == null && m_CanvasGroup != null)
             {
-                InjectSubtitle(m_CanvasGroup.transform,
-                    "You host the match; the VPS relay forwards traffic (no port-forwarding needed)");
-
                 // The SessionUI prefab never wired a dedicated-server toggle, so
                 // m_UseDedicatedServer stays null and OnCreateClick() forces every
                 // room to P2P (CreateSessionRequest) — the container is never spawned.
                 // Inject the toggle at runtime and wire it so the player can choose.
                 if (m_UseDedicatedServer == null)
+                {
                     InjectDedicatedToggle(m_CanvasGroup.transform);
+                }
             }
+
+            // Outside the Canvas check above, and not guarded on the dedicated toggle. That block
+            // only runs for a panel with no Canvas of its own, and the password row is needed
+            // whatever this panel's shape turns out to be — it was missing from the prefab
+            // entirely, so there is never an existing one to defer to.
+            if (m_CanvasGroup != null)
+            {
+                InjectPasswordRow(m_CanvasGroup.transform);
+            }
+
+            // Show() also does this, but Show() may already have run: this panel is the one that
+            // opens by default now, and nothing orders this Start() against the mediator's. The
+            // toggle is injected switched on, so without this a build with dedicated servers
+            // disabled could be left offering the option.
+            ApplyDedicatedToggleVisibility();
         }
 
         void OnDestroy()
@@ -70,6 +82,22 @@ namespace Unity.BossRoom.Gameplay.UI
             // unique "Room-XXXX" name, since a fixed default collides with the master server's
             // duplicate-name check (409) once two players create an unnamed room.
             string name = m_SessionNameInputField != null ? m_SessionNameInputField.text : string.Empty;
+
+            // Answered here rather than by the server. A private room with no password comes
+            // back as HTTP 400 "Private lobbies require a password" — an error the player can do
+            // nothing with, arriving after the request, phrased for whoever wrote the API. Asking
+            // for it in the form is the same rule enforced where it can still be fixed.
+            if (isPrivate && string.IsNullOrWhiteSpace(password))
+            {
+                m_SessionUIMediator?.ShowToast("Una sala privada necesita una contraseña.", 4f);
+                if (m_PasswordField != null)
+                {
+                    m_PasswordField.Select();
+                    m_PasswordField.ActivateInputField();
+                }
+
+                return;
+            }
 
             if (useDedicated)
                 m_SessionUIMediator?.CreateDedicatedSessionRequest(name, isPrivate, password);
@@ -100,32 +128,97 @@ namespace Unity.BossRoom.Gameplay.UI
 
         // ── Runtime injection (prefab path) ──────────────────────────────────
 
-        // Overlays a small subtitle at the top of the panel even when the UI
-        // comes from the prefab (BuildUI won't run in that case).
-        static void InjectSubtitle(Transform panelRoot, string text)
-        {
-            // Don't inject twice.
-            if (panelRoot.Find("__Subtitle")) return;
-            var go = new GameObject("__Subtitle");
-            go.transform.SetParent(panelRoot, false);
-            var t = go.AddComponent<Text>();
-            t.font = GetFont();
-            t.text = text;
-            t.fontSize = 12;
-            t.fontStyle = FontStyle.Italic;
-            t.color = new Color(0.6f, 0.78f, 0.95f);
-            t.alignment = TextAnchor.UpperCenter;
-            var r = go.GetComponent<RectTransform>();
-            r.anchorMin = new Vector2(0f, 1f);
-            r.anchorMax = new Vector2(1f, 1f);
-            r.pivot = new Vector2(0.5f, 1f);
-            r.anchoredPosition = new Vector2(0f, -6f);
-            r.sizeDelta = new Vector2(0f, 26f);
-        }
-
         // Builds a "Dedicated server" checkbox at the top of the panel and wires
         // it to m_UseDedicatedServer, so checking it routes OnCreateClick() through
         // CreateDedicatedSessionRequest (docker run on the VPS) instead of P2P.
+        /// <summary>
+        /// Builds the password field the private-room flow needs.
+        /// </summary>
+        /// <remarks>
+        /// <para><c>m_PasswordField</c> and <c>m_PasswordRow</c> are serialized fields that were
+        /// never wired in the prefab. Every use of them is null-guarded, so nothing complained —
+        /// the toggle worked, the row it was supposed to reveal did not exist, and the password
+        /// went to the server as null. The master server then answered
+        /// <c>HTTP 400: Private lobbies require a password</c> and the room was never created,
+        /// with no way for the player to supply the thing it was asking for.</para>
+        ///
+        /// <para>Built here rather than added to the prefab for the same reason
+        /// <see cref="InjectDedicatedToggle"/> is: an on-disk asset edit can be replaced by the
+        /// Editor's cached copy when the dedicated-server build is made, and a control that exists
+        /// in the Editor but not in the build is exactly the failure this is fixing.</para>
+        /// </remarks>
+        void InjectPasswordRow(Transform panelRoot)
+        {
+            if (panelRoot.Find("__PasswordRow") is Transform existing)
+            {
+                m_PasswordRow = existing.gameObject;
+                m_PasswordField = existing.GetComponentInChildren<InputField>(true);
+                m_PasswordRow.SetActive(m_IsPrivate != null && m_IsPrivate.isOn);
+                return;
+            }
+
+            var row = new GameObject("__PasswordRow");
+            row.transform.SetParent(panelRoot, false);
+
+            var bar = row.AddComponent<Image>();
+            bar.color = new Color(0.12f, 0.16f, 0.24f, 0.92f);
+            var rowRect = row.GetComponent<RectTransform>();
+            rowRect.anchorMin = new Vector2(0f, 1f);
+            rowRect.anchorMax = new Vector2(1f, 1f);
+            rowRect.pivot = new Vector2(0.5f, 1f);
+            // Directly under the dedicated-server toggle, which sits at -34 and is 30 tall.
+            rowRect.anchoredPosition = new Vector2(0f, -68f);
+            rowRect.sizeDelta = new Vector2(-40f, 32f);
+
+            var labelGO = new GameObject("Label");
+            labelGO.transform.SetParent(row.transform, false);
+            var label = labelGO.AddComponent<Text>();
+            label.text = "Contraseña";
+            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.fontSize = 14;
+            label.alignment = TextAnchor.MiddleLeft;
+            label.color = new Color(0.78f, 0.85f, 0.95f);
+            var labelRect = labelGO.GetComponent<RectTransform>();
+            labelRect.anchorMin = new Vector2(0f, 0f);
+            labelRect.anchorMax = new Vector2(0f, 1f);
+            labelRect.pivot = new Vector2(0f, 0.5f);
+            labelRect.anchoredPosition = new Vector2(8f, 0f);
+            labelRect.sizeDelta = new Vector2(96f, 0f);
+
+            var fieldGO = new GameObject("Field");
+            fieldGO.transform.SetParent(row.transform, false);
+            var fieldBg = fieldGO.AddComponent<Image>();
+            fieldBg.color = new Color(0.04f, 0.06f, 0.11f, 0.95f);
+            var fieldRect = fieldGO.GetComponent<RectTransform>();
+            fieldRect.anchorMin = new Vector2(0f, 0f);
+            fieldRect.anchorMax = new Vector2(1f, 1f);
+            fieldRect.offsetMin = new Vector2(110f, 3f);
+            fieldRect.offsetMax = new Vector2(-8f, -3f);
+
+            var textGO = new GameObject("Text");
+            textGO.transform.SetParent(fieldGO.transform, false);
+            var text = textGO.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.fontSize = 14;
+            text.alignment = TextAnchor.MiddleLeft;
+            text.color = Color.white;
+            text.supportRichText = false;
+            var textRect = textGO.GetComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = new Vector2(6f, 0f);
+            textRect.offsetMax = new Vector2(-6f, 0f);
+
+            var field = fieldGO.AddComponent<InputField>();
+            field.textComponent = text;
+            field.contentType = InputField.ContentType.Password;
+            field.lineType = InputField.LineType.SingleLine;
+
+            m_PasswordRow = row;
+            m_PasswordField = field;
+            m_PasswordRow.SetActive(m_IsPrivate != null && m_IsPrivate.isOn);
+        }
+
         void InjectDedicatedToggle(Transform panelRoot)
         {
             if (panelRoot.Find("__DedicatedToggle") is Transform existing)
@@ -173,7 +266,7 @@ namespace Unity.BossRoom.Gameplay.UI
             labelGO.transform.SetParent(go.transform, false);
             var lt = labelGO.AddComponent<Text>();
             lt.font = GetFont();
-            lt.text = "Dedicated server  (VPS container — otherwise hosted via relay)";
+            lt.text = "Servidor dedicado  (contenedor en el VPS; si no, se hospeda por relay)";
             lt.fontSize = 12;
             lt.color = new Color(0.88f, 0.88f, 0.88f);
             lt.alignment = TextAnchor.MiddleLeft;
@@ -216,9 +309,9 @@ namespace Unity.BossRoom.Gameplay.UI
             float y = 205f;
 
             // ── Header ────────────────────────────────────────────────────────
-            PlaceText(bg.transform, "Create Room", y, 480f, 40f, 26, FontStyle.Bold, Color.white);
+            PlaceText(bg.transform, "Crear sala", y, 480f, 40f, 26, FontStyle.Bold, Color.white);
             y -= 44f;
-            PlaceText(bg.transform, "You will be the host — other players will connect to you", y, 480f, 24f, 12,
+            PlaceText(bg.transform, "Vas a ser el anfitrión: los demás se conectan a ti", y, 480f, 24f, 12,
                 FontStyle.Italic, new Color(0.6f, 0.7f, 0.85f));
             y -= 32f;
 
@@ -227,14 +320,14 @@ namespace Unity.BossRoom.Gameplay.UI
             y -= 20f;
 
             // ── Room name ─────────────────────────────────────────────────────
-            PlaceText(bg.transform, "Room Name", y, 450f, 22f, 12, FontStyle.Normal, new Color(0.75f, 0.75f, 0.75f));
+            PlaceText(bg.transform, "Nombre de la sala", y, 450f, 22f, 12, FontStyle.Normal, new Color(0.75f, 0.75f, 0.75f));
             y -= 26f;
             m_SessionNameInputField = MakeInputField(bg.transform,
-                "My Room  (leave blank for a random name)", ref y, false, 450f);
+                "Mi sala  (déjalo vacío para un nombre al azar)", ref y, false, 450f);
 
             // ── Private toggle ────────────────────────────────────────────────
             y -= 10f;
-            m_IsPrivate = MakeToggle(bg.transform, "Private room  (share the code to invite friends)", y);
+            m_IsPrivate = MakeToggle(bg.transform, "Sala privada  (comparte el código para invitar)", y);
             y -= 40f;
 
             // ── Password row (hidden until private is on) ─────────────────────
@@ -247,14 +340,14 @@ namespace Unity.BossRoom.Gameplay.UI
             pwRT.anchoredPosition = new Vector2(0f, y - 29f);
             m_PasswordRow = pwRow;
 
-            PlaceText(pwRow.transform, "Password", 29f, 450f, 22f, 12, FontStyle.Normal, new Color(0.75f, 0.75f, 0.75f));
+            PlaceText(pwRow.transform, "Contraseña", 29f, 450f, 22f, 12, FontStyle.Normal, new Color(0.75f, 0.75f, 0.75f));
             float innerY = 4f;
             m_PasswordField = MakeInputField(pwRow.transform, "room password…", ref innerY, true, 450f);
             y -= 66f;
 
             // ── Dedicated server toggle ───────────────────────────────────────
             m_UseDedicatedServer = MakeToggle(bg.transform,
-                "Dedicated server  (VPS container — otherwise hosted via relay)", y);
+                "Servidor dedicado  (contenedor en el VPS; si no, se hospeda por relay)", y);
             // Default off — relay hosting is the primary (cheap) path; dedicated is opt-in.
             m_UseDedicatedServer.isOn = false;
             y -= 40f;
@@ -263,7 +356,7 @@ namespace Unity.BossRoom.Gameplay.UI
             y -= 24f;
 
             // ── Create button ─────────────────────────────────────────────────
-            MakeButton(bg.transform, "Create Room", new Vector2(0f, y), OnCreateClick,
+            MakeButton(bg.transform, "Crear sala", new Vector2(0f, y), OnCreateClick,
                 new Color(0.14f, 0.48f, 0.18f), 220f, 46f);
         }
 

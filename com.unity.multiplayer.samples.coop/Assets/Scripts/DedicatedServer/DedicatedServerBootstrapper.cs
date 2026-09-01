@@ -13,7 +13,7 @@ namespace Unity.BossRoom.DedicatedServer
     /// Lifecycle: Register → Poll for allocation → Load game → Heartbeat → Unregister → Quit.
     ///
     /// Required env vars:
-    ///   MASTER_SERVER_URL        e.g. http://your-vps:8000
+    ///   MASTER_SERVER_URL        e.g. http://your-vps:8001
     ///   SERVER_IP                public IP of this VPS
     ///   SERVER_PORT              UDP port this instance listens on (default 9999)
     ///   SERVER_SHARED_SECRET     shared secret for privileged master-server endpoints
@@ -43,7 +43,7 @@ namespace Unity.BossRoom.DedicatedServer
             Current = this;
             DontDestroyOnLoad(gameObject);
 
-            string masterUrl = Env("MASTER_SERVER_URL") ?? m_MasterServerConfig?.baseUrl ?? "http://localhost:8000";
+            string masterUrl = Env("MASTER_SERVER_URL") ?? m_MasterServerConfig?.baseUrl ?? "http://localhost:8001";
             string serverIp  = Env("SERVER_IP") ?? "127.0.0.1";
             int port = int.TryParse(Env("SERVER_PORT"), out var p) ? p : m_DefaultPort;
 

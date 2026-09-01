@@ -40,6 +40,12 @@ namespace Unity.BossRoom.Gameplay.Actions
         /// </summary>
         const float k_SelfHealMaxFractionOfMaxHp = 0.25f;
 
+        /// <summary>
+        /// Extra time the facing stays planted after the swing connects, so the snap doesn't
+        /// visibly unwind while the follow-through is still playing.
+        /// </summary>
+        const float k_FacingLockTailSeconds = 0.1f;
+
         public override bool OnStart(ServerCharacter serverCharacter)
         {
             if (Config.IsFriendly)
@@ -63,11 +69,14 @@ namespace Unity.BossRoom.Gameplay.Actions
                 Data.TargetIds = new ulong[] { foe.NetworkObjectId };
             }
 
-            // snap to face the right direction
-            if (Data.Direction != Vector3.zero)
-            {
-                serverCharacter.physicsWrapper.Transform.forward = Data.Direction;
-            }
+            // Snap to face the swing — and hold it. Melee re-runs DetectFoe at ExecTimeSeconds
+            // (see the remarks above), and that hit-test is a box/sphere cast projected from the
+            // character's facing, so a player who kept walking after starting the swing used to
+            // have the hitbox drift off to wherever they were heading. Locking the facing across
+            // the exec window is what makes the swing land where it was aimed.
+            serverCharacter.Movement.LockFacing(
+                serverCharacter.ResolveAimDirection(Data.Direction),
+                Config.ExecTimeSeconds + k_FacingLockTailSeconds);
 
             serverCharacter.serverAnimationHandler.SetTrigger(Config.Anim);
             serverCharacter.clientCharacter.RpcPlayAction(Data);
@@ -147,23 +156,34 @@ namespace Unity.BossRoom.Gameplay.Actions
         /// If a Radius value is set (greater than 0), collision checking will be done with a Sphere the size of the Radius, not the size of the Box.
         /// Also, if multiple targets collide as a result, the target with the highest total damage is prioritized.
         /// </remarks>
+        /// <summary>
+        /// Half-angle of the melee arc, in degrees. 90 gives the full 180-degree cone in front.
+        /// </summary>
+        const float k_MeleeConeHalfAngle = 90f;
+
         public static IDamageable GetIdealMeleeFoe(bool isNPC, Collider ourCollider, float meleeRange, float meleeRadius, ulong preferredTargetNetworkId, ulong attackerNetId = 0)
         {
             // In PvP mode a PC attacker also hits other PCs (never self).
             bool wantPcs = isNPC || (!isNPC && GameDataSource.IsPvPMode);
             bool wantNpcs = !isNPC;
 
-            RaycastHit[] results;
-            int numResults = 0.0f < meleeRadius
-                ? ActionUtils.DetectNearbyEntitiesUseSphere(wantPcs, wantNpcs, ourCollider, meleeRange, meleeRadius, out results)
-                : ActionUtils.DetectNearbyEntities(wantPcs, wantNpcs, ourCollider, meleeRange, out results);
+            // A 180-degree cone in front, rather than a cast straight ahead. Every melee power
+            // goes through here — the basic attacks of all four classes, the Rogue's dash and the
+            // Mage's heal, which is a friendly melee — so widening it here widens all of them at
+            // once and keeps them agreeing with each other.
+            //
+            // The radius on the asset still widens the search when it is set: it is added to the
+            // range, so a weapon authored as chunky stays chunky.
+            float reach = meleeRange + Mathf.Max(0f, meleeRadius);
+            int numResults = ActionUtils.DetectFoesInCone(wantPcs, wantNpcs, ourCollider, reach,
+                k_MeleeConeHalfAngle, out var results);
 
             IDamageable foundFoe = null;
             int maxDamage = int.MinValue;
 
             for (int i = 0; i < numResults; i++)
             {
-                var damageable = results[i].collider.GetComponent<IDamageable>();
+                var damageable = results[i].GetComponent<IDamageable>();
                 if (damageable == null || !damageable.IsDamageable())
                     continue;
 

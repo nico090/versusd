@@ -1,4 +1,5 @@
 using Mirror;
+using Unity.BossRoom.CameraUtils;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -39,8 +40,9 @@ namespace Unity.BossRoom.Gameplay.UserInput
         // Extra slack around the bar so it is easy to grab with a thumb without drawing it fat.
         const float k_GrabPaddingFraction = 0.03f;
 
-        // Default camera pitch, matching CameraController's authored VerticalAxis value.
-        const float k_DefaultVertical = 0.5f;
+        // Where the handle sits before a camera has been resolved. Taken from CameraController so
+        // the two can't drift apart when the starting zoom is retuned.
+        const float k_DefaultVertical = CameraController.DefaultZoom;
 
         // Set in Awake so OwnsScreenPoint can answer for whoever asks. Only ever one of these:
         // Bootstrap creates a single DontDestroyOnLoad instance.

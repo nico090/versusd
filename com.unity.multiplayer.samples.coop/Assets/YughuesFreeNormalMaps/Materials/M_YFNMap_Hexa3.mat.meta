@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 2fce52f887bd46d448eef929ddf4375c
+labels:
+- Metal
+- Plates
+timeCreated: 1429689609
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 35362
+  packageName: Yughues Free N
+  packageVersion: 1.1
+  assetPath: Assets/YughuesFreeNormalMaps/Materials/M_YFNMap_Hexa3.mat
+  uploadId: 750798

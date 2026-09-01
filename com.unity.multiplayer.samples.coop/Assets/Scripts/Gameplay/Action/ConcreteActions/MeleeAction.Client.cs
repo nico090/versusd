@@ -107,6 +107,17 @@ namespace Unity.BossRoom.Gameplay.Actions
                 return;
             }
 
+            // Everything below is a cosmetic flinch on somebody else's model. It runs from an
+            // animation event, which means it fires a frame or two AFTER the swing was decided —
+            // and the most common thing to swing at is something that is now dying. Every lookup
+            // here can therefore come back holding a corpse, so each one is checked and the whole
+            // thing gives up quietly rather than throwing. On desktop the throw was a red line in
+            // the console; under IL2CPP on Android the same dereference closed the game.
+            if (parent == null)
+            {
+                return;
+            }
+
             //Is my original target still in range? Then definitely get him!
             if (Data.TargetIds != null && Data.TargetIds.Length > 0)
             {
@@ -115,8 +126,12 @@ namespace Unity.BossRoom.Gameplay.Actions
                 {
                     float padRange = Config.Range + k_RangePadding;
 
+                    // The wrapper registry can still hand back an entry for an object that has
+                    // just been despawned — which is exactly what a killing blow produces — and its
+                    // Transform is gone by the time this reads it. This was the crash.
                     Vector3 targetPosition;
-                    if (PhysicsWrapper.TryGetPhysicsWrapper(Data.TargetIds[0], out var movementContainer))
+                    if (PhysicsWrapper.TryGetPhysicsWrapper(Data.TargetIds[0], out var movementContainer)
+                        && movementContainer != null && movementContainer.Transform != null)
                     {
                         targetPosition = movementContainer.Transform.position;
                     }
@@ -127,7 +142,11 @@ namespace Unity.BossRoom.Gameplay.Actions
 
                     if ((parent.transform.position - targetPosition).sqrMagnitude < (padRange * padRange))
                     {
-                        if ((ulong)(uint)targetNetworkObj.netId != (ulong)(uint)parent.GetComponent<NetworkIdentity>().netId)
+                        // TryGetComponent, not GetComponent: a ClientCharacter whose identity has
+                        // already been torn down returns null here, and .netId on it is the other
+                        // way this method threw.
+                        if (parent.TryGetComponent<NetworkIdentity>(out var parentIdentity)
+                            && (ulong)(uint)targetNetworkObj.netId != (ulong)(uint)parentIdentity.netId)
                         {
                             string hitAnim = Config.ReactAnim;
                             if (string.IsNullOrEmpty(hitAnim)) { hitAnim = k_DefaultHitReact; }

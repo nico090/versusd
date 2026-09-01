@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Mirror;
 using Unity.BossRoom.ConnectionManagement;
 using Unity.BossRoom.DedicatedServer;
+using Unity.BossRoom.Gameplay.Configuration;
 using Unity.BossRoom.Gameplay.GameplayObjects;
 using Unity.BossRoom.Gameplay.GameplayObjects.Character;
 using Unity.BossRoom.Gameplay.Messages;
@@ -45,11 +46,12 @@ namespace Unity.BossRoom.Gameplay.GameState
 
         public override GameState ActiveState { get { return GameState.BossRoom; } }
 
-        private const float k_WinDelay = 7.0f;
-        private const float k_RespawnDelay = 5f;
+        private const float k_WinDelay = DeathmatchRules.PostMatchDelay;
+        private const float k_RespawnDelay = DeathmatchRules.RespawnDelay;
         // Brief spawn protection so a freshly respawned player can't be instantly
-        // re-killed at the spawn point (spawn-camping). Server-authoritative.
-        private const float k_RespawnInvulnerability = 2f;
+        // re-killed at the spawn point (spawn-camping). Server-authoritative, and cancelled the
+        // moment the player throws a punch — see ServerCharacter.CancelInvulnerability.
+        private const float k_RespawnInvulnerability = DeathmatchRules.RespawnInvulnerability;
 
         /// <summary>
         /// Has the ServerBossRoomState already hit its initial spawn? (i.e. spawned players following load from character select).
@@ -58,6 +60,8 @@ namespace Unity.BossRoom.Gameplay.GameState
 
         bool m_ServerInitialized;
         bool m_MatchEnded;
+        ServerBossSpawner m_BossSpawner;
+        ServerZoneSpawner m_ZoneSpawner;
 
         /// <summary>
         /// Keeping the subscriber during this GameState's lifetime to allow disposing of subscription and re-subscribing
@@ -100,12 +104,34 @@ namespace Unity.BossRoom.Gameplay.GameState
             {
                 SpawnPlayer((ulong)(uint)conn.connectionId, false);
             }
+
+            // Players are in — start the clock. The spawner arms itself now but holds the boss back
+            // until the last two minutes of the match.
+            ServerCharacter.MatchInputFrozen = false;
+            networkGameState.StartMatch();
+            m_BossSpawner = ServerBossSpawner.Create(m_PlayerSpawnPoints, networkGameState);
+            m_ZoneSpawner = ServerZoneSpawner.Create(m_PlayerSpawnPoints, networkGameState);
         }
 
         void OnNetworkDespawn()
         {
             if (!m_ServerInitialized) return;
             m_ServerInitialized = false;
+
+            if (m_BossSpawner != null)
+            {
+                Destroy(m_BossSpawner.gameObject);
+                m_BossSpawner = null;
+            }
+
+            if (m_ZoneSpawner != null)
+            {
+                // Its OnDestroy clears both the replicated list and the static boon table, so no
+                // zone and no boon can survive into the next match.
+                Destroy(m_ZoneSpawner.gameObject);
+                m_ZoneSpawner = null;
+            }
+            ServerCharacter.MatchInputFrozen = false;
 
             if (m_LifeStateChangedEventMessageSubscriber != null)
             {
@@ -114,6 +140,22 @@ namespace Unity.BossRoom.Gameplay.GameState
 
             NetworkServer.OnConnectedEvent -= OnServerClientConnected;
             NetworkServer.OnDisconnectedEvent -= OnServerClientDisconnected;
+
+            // The symmetric half of the OnSessionStarted() above. It used to live only in
+            // ServerPostGameState, which means the session was only ever ended when a match ran
+            // all the way to the results screen — leave from the pause menu, lose the host, or
+            // have the server change scene for any other reason and it never closed.
+            //
+            // That is not cosmetic. SessionManager.DisconnectClient keeps a player's data while
+            // m_HasSessionStarted is true, so they can reconnect mid-match. With the flag stuck on,
+            // the NEXT match treats everyone as a reconnection: PersistentPlayer sees
+            // HasCharacterSpawned and reuses the old avatar guid instead of taking the one just
+            // chosen, and ServerBossRoomState restores the previous match's position. The player
+            // ends up with no character they can see. Ending the session here reinitialises that
+            // data whatever route the match ended by.
+            //
+            // Safe to run twice: PostGame still calls it, and both halves are idempotent.
+            SessionManager<SessionPlayerData>.Instance.OnSessionEnded();
         }
 
         void OnServerClientConnected(NetworkConnectionToClient conn)
@@ -148,12 +190,30 @@ namespace Unity.BossRoom.Gameplay.GameState
         {
             if (!m_ServerInitialized || m_MatchEnded || networkGameState == null) return;
 
-            // Primary win condition (free-for-all): first to the target score.
-            // Fallback: the timer running out (highest score wins, resolved in CoroGameOver).
-            if (networkGameState.HasPlayerReachedTarget() || networkGameState.TimeRemaining <= 0f)
+            // Free-for-all: the clock is the only end condition. Whoever has the most points when
+            // it hits zero wins (ties broken by player kills — see ScoreEntry.CompareForRanking).
+            if (networkGameState.Phase == MatchPhase.Ended)
             {
                 m_MatchEnded = true;
+                FreezeAllPlayers();
                 StartCoroutine(CoroGameOver(k_WinDelay));
+            }
+        }
+
+        /// <summary>
+        /// Server-only: stop everyone dead when the match ends, so nobody can squeeze in a kill
+        /// while the final table is on screen. Movement and running actions are cancelled here and
+        /// new input is rejected at the ServerCharacter command handlers.
+        /// </summary>
+        void FreezeAllPlayers()
+        {
+            ServerCharacter.MatchInputFrozen = true;
+
+            foreach (var serverCharacter in PlayerServerCharacter.GetPlayerServerCharacters())
+            {
+                if (serverCharacter == null) continue;
+                serverCharacter.ActionPlayer.ClearActions(true);
+                serverCharacter.Movement.CancelMove();
             }
         }
 
@@ -238,10 +298,16 @@ namespace Unity.BossRoom.Gameplay.GameState
             // register player in the live scoreboard
             SessionPlayerData? scoreData = SessionManager<SessionPlayerData>.Instance.GetPlayerData(clientId);
             string scorePlayerId = SessionManager<SessionPlayerData>.Instance.GetPlayerId(clientId);
-            networkGameState.RegisterPlayer(clientId, scorePlayerId, playerName, scoreData?.PlayerNumber ?? 0);
+            networkGameState.RegisterPlayer(clientId, scorePlayerId, playerName,
+                scoreData?.PlayerNumber ?? 0, Bots.ServerBotManager.IsBot(clientId));
 
             // spawn player character
             NetworkServer.Spawn(newPlayer, conn);
+
+            // If this "player" is a bot, give its avatar a brain. A no-op for humans — their
+            // avatar is driven by their own ClientInputSender. Done after the spawn so the brain
+            // starts on an object that already has a netId to attack with.
+            Bots.ServerBotManager.TryAttachBrain(clientId, newPlayerCharacter);
         }
 
         void OnLifeStateChangedEventMessage(LifeStateChangedEventMessage message)
@@ -270,10 +336,57 @@ namespace Unity.BossRoom.Gameplay.GameState
             var sc = PlayerServerCharacter.GetPlayerServerCharacter(clientId);
             if (sc == null || sc.LifeState != LifeState.Fainted) yield break;
 
-            var spawnPoint = m_PlayerSpawnPoints[Random.Range(0, m_PlayerSpawnPoints.Length)];
-            sc.physicsWrapper.Transform.SetPositionAndRotation(spawnPoint.position, spawnPoint.rotation);
-            sc.Revive(null, sc.CharacterClass.BaseHP.Value);
+            // Don't respawn into the endgame — the match is over, the table is up.
+            if (m_MatchEnded) yield break;
+
+            var spawnPoint = PickSafestSpawnPoint(sc);
+            if (spawnPoint != null)
+            {
+                sc.physicsWrapper.Transform.SetPositionAndRotation(spawnPoint.position, spawnPoint.rotation);
+            }
+            sc.Revive(null, sc.MaxHitPoints);
             sc.SetInvulnerable(k_RespawnInvulnerability);
+        }
+
+        /// <summary>
+        /// Picks the spawn point that is furthest from the nearest living opponent — i.e. maximises
+        /// the minimum distance to anyone who could shoot you the moment you appear. A plain loop
+        /// over the spawn points is plenty: there are a handful of each.
+        /// </summary>
+        Transform PickSafestSpawnPoint(ServerCharacter respawning)
+        {
+            Transform best = null;
+            float bestDistance = -1f;
+
+            foreach (var candidate in m_PlayerSpawnPoints)
+            {
+                if (candidate == null) continue;
+
+                float nearestOpponent = float.MaxValue;
+                foreach (var other in PlayerServerCharacter.GetPlayerServerCharacters())
+                {
+                    if (other == null || other == respawning) continue;
+                    if (other.LifeState != LifeState.Alive) continue;
+                    if (other.physicsWrapper == null) continue;
+
+                    float distance = Vector3.Distance(candidate.position, other.physicsWrapper.Transform.position);
+                    if (distance < nearestOpponent)
+                    {
+                        nearestOpponent = distance;
+                    }
+                }
+
+                if (nearestOpponent > bestDistance)
+                {
+                    bestDistance = nearestOpponent;
+                    best = candidate;
+                }
+            }
+
+            // Nobody alive to hide from (or no usable points): any point will do.
+            return best != null
+                ? best
+                : (m_PlayerSpawnPoints.Length > 0 ? m_PlayerSpawnPoints[Random.Range(0, m_PlayerSpawnPoints.Length)] : null);
         }
 
         IEnumerator CoroGameOver(float wait)

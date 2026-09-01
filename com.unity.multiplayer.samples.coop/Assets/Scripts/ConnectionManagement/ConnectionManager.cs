@@ -69,6 +69,19 @@ namespace Unity.BossRoom.ConnectionManagement
             ClientApprovedForSession?.Invoke(clientId);
         }
 
+        /// <summary>
+        /// Server-only: runs the "a client connected" bookkeeping for a participant that has no
+        /// transport connection behind it — i.e. a bot (see ServerBotManager). Bots cannot go
+        /// through <see cref="NetworkServer.OnConnectedEvent"/>, because Mirror routes that into
+        /// the authenticator, which would wait forever for a handshake that can never arrive. This
+        /// gives them the rest of it, so a bot joining produces the same notification a player's
+        /// arrival does.
+        /// </summary>
+        public void NotifyVirtualClientConnected(ulong clientId)
+        {
+            m_CurrentState.OnClientConnected(clientId);
+        }
+
         ConnectionState m_CurrentState;
 
         [SerializeField]

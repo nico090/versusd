@@ -27,9 +27,9 @@ namespace Unity.BossRoom.Mirror
     [AddComponentMenu("BossRoom/Mirror Network Authenticator")]
     public class MirrorNetworkAuthenticator : NetworkAuthenticator
     {
-        [Tooltip("Base URL of the Master Server, e.g. http://localhost:8000. On a dedicated " +
+        [Tooltip("Base URL of the Master Server, e.g. http://localhost:8001. On a dedicated " +
                  "server this is overridden by the MASTER_SERVER_URL environment variable.")]
-        public string masterServerUrl = "http://localhost:8000";
+        public string masterServerUrl = "http://localhost:8001";
 
         // Resolved in OnStartServer: dedicated servers require a valid join token.
         bool m_RequireToken;
@@ -68,7 +68,7 @@ namespace Unity.BossRoom.Mirror
             //   2. MasterServerConfig.baseUrl (via the facade) — the single address the rest
             //      of the game already uses for lobbies. A player-hosted (relay/P2P) host has
             //      no env var, so without this it silently fell back to the serialized default
-            //      below. That default was "http://localhost:8000", i.e. the host's OWN machine,
+            //      below. That default was "http://localhost:8001", i.e. the host's OWN machine,
             //      where nothing listens: every join-token validation failed with a connection
             //      error and the host rejected every joiner (see VersusD project memory
             //      "relay-lrm-migration"). Reading the config keeps the two in sync by

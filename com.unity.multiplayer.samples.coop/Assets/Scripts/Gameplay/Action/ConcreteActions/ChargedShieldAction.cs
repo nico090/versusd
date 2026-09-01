@@ -122,8 +122,18 @@ namespace Unity.BossRoom.Gameplay.Actions
 
         public override void OnGameplayActivity(ServerCharacter serverCharacter, GameplayActivity activityType)
         {
-            // for this particular type of Action, being attacked immediately causes you to stop charging up
-            if (activityType == GameplayActivity.AttackedByEnemy || activityType == GameplayActivity.StoppedChargingUp)
+            // Only being hit stops the charge. Letting go of the button no longer does.
+            //
+            // StoppedChargingUp is raised when the player releases, and honouring it made this a
+            // hold-to-use ability: a tap released almost immediately, so the shield came out at a
+            // few percent charge and did next to nothing. The player got a cooldown spent and no
+            // shield, with nothing on screen explaining why.
+            //
+            // OnUpdate already ends the charge on its own once ExecTimeSeconds have passed, so
+            // ignoring the release simply lets it run to full — press once, and a second later the
+            // shield is up. The interruption that matters is kept: taking a hit mid-charge still
+            // breaks it, which is the counterplay the ability is balanced around.
+            if (activityType == GameplayActivity.AttackedByEnemy)
             {
                 StopChargingUp(serverCharacter);
             }

@@ -92,5 +92,23 @@ namespace Unity.BossRoom.Gameplay.GameState
             ulong clientId = (ulong)(uint)(sender?.connectionId ?? 0);
             OnClientChangedSeat?.Invoke(clientId, seatIdx, lockedIn);
         }
+
+        /// <summary>
+        /// Server-side equivalent of <see cref="CmdChangeSeat"/>, for participants that have no
+        /// client to send a Command from — i.e. bots. It deliberately raises the very same event,
+        /// so a bot's seat choice is subject to the identical rules a player's is: it can have its
+        /// seat sniped by someone who locks in first, it can't change its mind after the session
+        /// closes, and it counts towards closing the session.
+        /// </summary>
+        /// <param name="clientId">The bot's (fake) connection id.</param>
+        public void ServerRequestSeatChange(ulong clientId, int seatIdx, bool lockedIn)
+        {
+            if (!isServer)
+            {
+                return;
+            }
+
+            OnClientChangedSeat?.Invoke(clientId, seatIdx, lockedIn);
+        }
     }
 }

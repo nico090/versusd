@@ -176,7 +176,12 @@ namespace Unity.BossRoom.Gameplay.UI
                 SpawnUIState();
             }
 
-            m_UIState.DisplayHealth(m_NetworkHealthState, m_BaseHP.Value);
+            // Monsters spawn with a buffed HP pool (see NpcBalance), so the bar has to be scaled
+            // to the same ceiling — otherwise it would sit at "full" until an imp dropped below
+            // the 8 HP its .asset declares.
+            int maxHitPoints = m_ServerCharacter != null ? m_ServerCharacter.MaxHitPoints : m_BaseHP.Value;
+
+            m_UIState.DisplayHealth(m_NetworkHealthState, maxHitPoints);
             m_UIStateActive = true;
         }
 

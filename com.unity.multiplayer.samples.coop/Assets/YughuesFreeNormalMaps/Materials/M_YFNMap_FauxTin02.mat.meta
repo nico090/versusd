@@ -1,0 +1,19 @@
+fileFormatVersion: 2
+guid: b82727eb257fde3419559b557797a55c
+labels:
+- Metal
+- Plates
+- Victorian
+timeCreated: 1429689613
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 35362
+  packageName: Yughues Free N
+  packageVersion: 1.1
+  assetPath: Assets/YughuesFreeNormalMaps/Materials/M_YFNMap_FauxTin02.mat
+  uploadId: 750798

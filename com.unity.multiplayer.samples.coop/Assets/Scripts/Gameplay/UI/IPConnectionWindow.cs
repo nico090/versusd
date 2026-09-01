@@ -82,7 +82,7 @@ namespace Unity.BossRoom.Gameplay.UI
                 yield return new WaitForSeconds(1f);
                 seconds--;
             }
-            m_TitleText.text = "Connecting...";
+            m_TitleText.text = "Conectando...";
             endAction();
         }
 

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.BossRoom.Gameplay.Configuration;
 using Unity.BossRoom.Gameplay.GameplayObjects;
 using Unity.BossRoom.Gameplay.GameplayObjects.Character;
 using UnityEngine;
@@ -39,14 +40,32 @@ namespace Unity.BossRoom.Gameplay.Actions
         /// The reuse (cooldown) time actually enforced for an action: whatever its config says,
         /// but never less than the code-side floor for actions that need one.
         /// </summary>
-        private static float GetEffectiveReuseTime(ActionConfig config)
+        private float GetEffectiveReuseTime(ActionConfig config)
         {
             if (config.IsFriendly && config.Logic == ActionLogic.Melee)
             {
                 return Mathf.Max(config.ReuseTimeSeconds, k_MinSelfHealReuseSeconds);
             }
 
+            // PvP balance floors (Rogue stealth, Tank shield). Heroes only — a monster's cooldowns
+            // are its own business.
+            if (!m_ServerCharacter.IsNpc)
+            {
+                return HeroBalance.GetReuseTime(m_ServerCharacter.CharacterType, config.Logic, config.ReuseTimeSeconds);
+            }
+
             return config.ReuseTimeSeconds;
+        }
+
+        /// <summary>
+        /// The duration actually enforced for an action, after the PvP balance pass. 0 means
+        /// "indefinite", as in <see cref="ActionConfig.DurationSeconds"/>.
+        /// </summary>
+        private float GetEffectiveDuration(ActionConfig config)
+        {
+            return m_ServerCharacter.IsNpc
+                ? config.DurationSeconds
+                : HeroBalance.GetDuration(config.Logic, config.DurationSeconds);
         }
 
         private ActionRequestData m_PendingSynthesizedAction = new ActionRequestData();
@@ -66,6 +85,34 @@ namespace Unity.BossRoom.Gameplay.Actions
         /// </summary>
         public void PlayAction(ref ActionRequestData action)
         {
+            // The reticle stream is bookkeeping, not a move the player made: the client sends a
+            // Target action every time its aim assist settles on somebody new, several times a
+            // second. It runs outside the queue, because through the queue it was destructive —
+            // Chase is interruptible, so while a hero was closing the distance every one of those
+            // reticle updates cleared the queue and took the attack waiting behind the Chase with
+            // it. That is most of why an attack "sometimes didn't happen": moving the mouse is
+            // what moves the reticle, so mouse attacks lost swings that keyboard ones kept.
+            if (action.ActionID == GameDataSource.Instance.GeneralTargetActionPrototype.ActionID)
+            {
+                PlayTargetAction(ref action);
+                return;
+            }
+
+            // Asking again for something that is already queued and hasn't started — a player
+            // mashing attack while the character is still walking into range — used to clear the
+            // queue and begin the approach again, so the swing that was lined up never landed and
+            // clicking fast attacked *less* than clicking slowly. Index 0 is excluded on purpose:
+            // that action is already running, and queueing the next swing behind it is exactly
+            // what mashing should do. A request at a different target still goes through, so
+            // switching foes mid-approach stays responsive.
+            for (int i = 1; i < m_Queue.Count; i++)
+            {
+                if (m_Queue[i].ActionID == action.ActionID && HasSameTarget(m_Queue[i].Data, action))
+                {
+                    return;
+                }
+            }
+
             if (!action.ShouldQueue && m_Queue.Count > 0 &&
                 (m_Queue[0].Config.ActionInterruptible ||
                     m_Queue[0].Config.CanBeInterruptedBy(action.ActionID)))
@@ -84,13 +131,53 @@ namespace Unity.BossRoom.Gameplay.Actions
             if (m_Queue.Count == 1) { StartAction(); }
         }
 
+        /// <summary>
+        /// Runs a Target action on its own instead of through the queue. It is non-blocking by
+        /// configuration and retires the previous one itself (see <c>TargetAction.OnStart</c>), so
+        /// it needs neither a slot in the queue nor the queue cleared to take effect — and going
+        /// through the queue would either destroy what is waiting there or make the reticle lag a
+        /// whole swing behind the aim.
+        /// </summary>
+        private void PlayTargetAction(ref ActionRequestData action)
+        {
+            var targetAction = ActionFactory.CreateActionFromData(ref action);
+            targetAction.TimeStarted = Time.time;
+
+            if (targetAction.OnStart(m_ServerCharacter))
+            {
+                m_NonBlockingActions.Add(targetAction);
+            }
+            else
+            {
+                // The reticle was cleared rather than moved. OnStart has already reset TargetId,
+                // and an action that bows out in OnStart never gets End called, by design.
+                ActionFactory.ReturnAction(targetAction);
+            }
+        }
+
+        /// <summary>
+        /// Whether two requests are aimed at the same character. Only the primary target matters:
+        /// it is what decides whether a repeated request is the same intent or a new one.
+        /// </summary>
+        private static bool HasSameTarget(ActionRequestData a, ActionRequestData b)
+        {
+            ulong targetA = a.TargetIds != null && a.TargetIds.Length > 0 ? a.TargetIds[0] : 0;
+            ulong targetB = b.TargetIds != null && b.TargetIds.Length > 0 ? b.TargetIds[0] : 0;
+            return targetA == targetB;
+        }
+
         public void ClearActions(bool cancelNonBlocking)
         {
             if (m_Queue.Count > 0)
             {
                 // Since this action was canceled, we don't want the player to have to wait Description.ReuseTimeSeconds
                 // to be able to start it again. It should be restartable immediately!
-                m_LastUsedTimestamps.Remove(m_Queue[0].ActionID);
+                // ...except for abilities whose cooldown must survive cancellation (Stealth, which
+                // *always* ends by being cancelled — otherwise its cooldown would never apply).
+                if (!HeroBalance.KeepsCooldownOnCancel(m_Queue[0].Config.Logic))
+                {
+                    m_LastUsedTimestamps.Remove(m_Queue[0].ActionID);
+                }
                 m_Queue[0].Cancel(m_ServerCharacter);
             }
 
@@ -393,9 +480,10 @@ namespace Unity.BossRoom.Gameplay.Actions
         private bool UpdateAction(Action action)
         {
             bool keepGoing = action.OnUpdate(m_ServerCharacter);
-            bool expirable = action.Config.DurationSeconds > 0f; //non-positive value is a sentinel indicating the duration is indefinite.
+            float duration = GetEffectiveDuration(action.Config);
+            bool expirable = duration > 0f; //non-positive value is a sentinel indicating the duration is indefinite.
             var timeElapsed = Time.time - action.TimeStarted;
-            bool timeExpired = expirable && timeElapsed >= action.Config.DurationSeconds;
+            bool timeExpired = expirable && timeElapsed >= duration;
             return keepGoing && !timeExpired;
         }
 

@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: b859caa0b313f6e49a603b11c36837bf
+labels:
+- Metal
+- Plates
+timeCreated: 1429689609
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 35362
+  packageName: Yughues Free N
+  packageVersion: 1.1
+  assetPath: Assets/YughuesFreeNormalMaps/Materials/M_YFNMap_Whirl.mat
+  uploadId: 750798

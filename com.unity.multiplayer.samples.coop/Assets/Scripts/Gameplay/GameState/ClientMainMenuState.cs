@@ -80,6 +80,14 @@ namespace Unity.BossRoom.Gameplay.GameState
         {
             if (m_UsernameLabel) m_UsernameLabel.text = username;
             if (m_SessionButton) m_SessionButton.interactable = true;
+
+            // Straight into the lobby. Signing in was the only thing gating it, and "Start
+            // Session" was the one button on this screen anybody was ever going to press — a menu
+            // whose every path leads to the same panel is a click, not a choice.
+            //
+            // The button stays (behind the panel) instead of being removed: the lobby's own
+            // Cancel drops the player back here, and without it there would be no way back in.
+            OnStartClicked();
         }
 
         public void OnStartClicked()
