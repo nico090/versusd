@@ -23,24 +23,58 @@ namespace Unity.BossRoom.Gameplay.UI
     public static class HudSkin
     {
         // ── Palette ───────────────────────────────────────────────────────────────────────────
-        // Matches the world restyle: near-black blue slate for surfaces, cyan for chrome, warm
-        // white for reading text. Alerts keep their conventional colours (red, gold) — those are
-        // semantics, not decoration, and they stay where players expect them.
+        // Cyberpunk Egypt: the stone is basalt with a violet cast — cool, never warm — and the
+        // only light left in the place is two neon tubes, one blue and one violet. Both are
+        // deliberately dulled: a saturated neon reads as an arcade, a dusty one reads as a tube
+        // that has been burning in a tomb for a long time. The inlays are lapis and amethyst, the
+        // two stones this look would actually have been cut from. Gold survives in exactly one
+        // job — first place — because there it is meaning rather than decoration, and red survives
+        // as the alarm on the last thirty seconds.
 
-        /// <summary>Translucent panel ground. Dark enough to hold white text over lava.</summary>
-        public static readonly Color PanelColor = new Color(0.04f, 0.055f, 0.095f, 0.72f);
+        /// <summary>Translucent panel ground. Dark enough to hold pale text over lava.</summary>
+        public static readonly Color PanelColor = new Color(0.042f, 0.038f, 0.070f, 0.74f);
 
         /// <summary>Thin edge line on panels; the "chrome" of the kit.</summary>
-        public static readonly Color PanelBorderColor = new Color(0f, 0.9f, 1f, 0.35f);
+        public static readonly Color PanelBorderColor = new Color(0.34f, 0.58f, 0.86f, 0.38f);
 
-        /// <summary>Body text.</summary>
-        public static readonly Color TextPrimary = new Color(0.92f, 0.96f, 1f, 1f);
+        /// <summary>Body text. Cool bone — white would read as a spreadsheet.</summary>
+        public static readonly Color TextPrimary = new Color(0.90f, 0.91f, 0.98f, 1f);
 
         /// <summary>De-emphasised text (labels, the scoreboard's lower rows).</summary>
-        public static readonly Color TextDim = new Color(0.62f, 0.7f, 0.8f, 1f);
+        public static readonly Color TextDim = new Color(0.62f, 0.62f, 0.76f, 1f);
 
-        /// <summary>Accent for numbers that matter right now (the timer).</summary>
-        public static readonly Color AccentCyan = new Color(0.45f, 0.95f, 1f, 1f);
+        /// <summary>
+        /// The cold light: chrome, and numbers that matter right now (the timer).
+        /// </summary>
+        /// <remarks>
+        /// Held down in both saturation and value, because it has to sit on stone without turning
+        /// the screen into a sci-fi console — the neon is the ruin's last working fixture, not its
+        /// theme.
+        /// </remarks>
+        public static readonly Color AccentBlue = new Color(0.36f, 0.68f, 0.94f, 1f);
+
+        /// <summary>
+        /// The second light: the violet tube, and the colour of anything going wrong.
+        /// </summary>
+        /// <remarks>
+        /// Paired with <see cref="AccentBlue"/> rather than used on its own. One light gives a
+        /// flat screen; two opposed ones give the stone a top and a bottom, which is what sells it
+        /// as lit rather than printed. Violet and blue are close enough on the wheel to read as
+        /// one palette and far enough apart to still be two lights.
+        /// </remarks>
+        public static readonly Color AccentViolet = new Color(0.60f, 0.38f, 0.92f, 1f);
+
+        /// <summary>Lapis: the deep blue the carved lines in the stone are filled with.</summary>
+        public static readonly Color Lapis = new Color(0.28f, 0.44f, 0.86f, 1f);
+
+        /// <summary>Amethyst: the second inlay, and the violet the ornament is cut in.</summary>
+        public static readonly Color Amethyst = new Color(0.56f, 0.42f, 0.88f, 1f);
+
+        /// <summary>
+        /// Gold leaf. The one warm colour left in the game, and it means exactly one thing: first
+        /// place. Anywhere else, use <see cref="Lapis"/> or <see cref="Amethyst"/>.
+        /// </summary>
+        public static readonly Color Gold = new Color(0.86f, 0.74f, 0.42f, 1f);
 
         // ── Sprites ───────────────────────────────────────────────────────────────────────────
 

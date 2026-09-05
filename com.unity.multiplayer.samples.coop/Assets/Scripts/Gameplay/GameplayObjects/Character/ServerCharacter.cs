@@ -248,6 +248,19 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
         /// </summary>
         public static bool MatchInputFrozen { get; set; }
 
+        /// <summary>
+        /// Server-only: set for the length of <see cref="MatchPhase.Warmup"/>. Players take no
+        /// damage while it is on, so the warm-up is somewhere to try the controls out rather than
+        /// a head start for whoever loaded in first. Static for the same reason as
+        /// <see cref="MatchInputFrozen"/>: it describes the match, and a server process runs one.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately protects players only, not NPCs — the imps standing around the map are the
+        /// one thing worth swinging at during a warm-up, and killing one pays nothing while
+        /// the score tracker is holding the scoring shut.
+        /// </remarks>
+        public static bool MatchWarmup { get; set; }
+
         void Awake()
         {
             m_ServerActionPlayer = new ServerActionPlayer(this);
@@ -636,6 +649,14 @@ namespace Unity.BossRoom.Gameplay.GameplayObjects.Character
             }
             else
             {
+                // Nobody can be hurt during the warm-up. Checked here, at the one point every
+                // source of damage funnels through, so it covers players, imps, hazard zones and
+                // anything added later without each of them having to know about the phase.
+                if (MatchWarmup && !IsNpc)
+                {
+                    return;
+                }
+
                 // Spawn protection / brief immunity. Unconditional (unlike the god-mode
                 // check below, which the release dedicated-server build compiles out), so
                 // post-respawn invulnerability actually works on the headless server.

@@ -76,9 +76,13 @@ namespace Unity.BossRoom.Gameplay.Configuration
         // ~45% of what it was: about 30-40 seconds of solo work, long enough to be a real gamble.
         const int k_ImpHitPoints = 60;        // ~2 swings
         const int k_VandalImpHitPoints = 110; // ~3 swings: a ranged nuisance, but not a project
-        // Doubled from 225. The boss only appears for the last two minutes and is worth four
-        // player kills, so it has to survive long enough for taking it down to be a decision the
-        // room fights over rather than something the first player to reach it finishes alone.
+        // Doubled from 225. The boss is only on the board for the final minute (see
+        // DeathmatchRules.BossSpawnTimeRemaining) and is worth a bit over two player kills, so it
+        // has to survive long enough for taking it down to be a decision the room fights over
+        // rather than something the first player to reach it finishes alone. At the ~30-40 seconds
+        // of solo work above, it eats most of that minute — which is exactly the cost of choosing
+        // it over hunting people, and the reason the two are worth checking together whenever
+        // either number moves.
         const int k_ImpBossHitPoints = 450;
 
         /// <summary>

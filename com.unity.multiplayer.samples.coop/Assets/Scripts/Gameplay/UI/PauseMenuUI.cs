@@ -123,6 +123,16 @@ namespace Unity.BossRoom.Gameplay.UI
                 return;
             }
 
+            // Then the warm-up walkthrough, if it is up: Escape there means "I know the controls",
+            // and spending the same press on opening this menu over the match would be the wrong
+            // answer to it. Skipped while the panel is already open — that is what the key closes
+            // then — and TryDismiss returns false whenever nothing is showing, so on every other
+            // press this costs one comparison and falls straight through.
+            if ((m_Panel == null || !m_Panel.activeSelf) && WarmupTutorial.TryDismiss())
+            {
+                return;
+            }
+
             Toggle();
         }
 

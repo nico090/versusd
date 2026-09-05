@@ -235,7 +235,7 @@ namespace Unity.BossRoom.Gameplay.UI
             int slot = FindOrAddAlly(target, true);
             if (slot >= 0)
             {
-                m_PartyNames[slot].color = selected ? Color.green : Color.white;
+                m_PartyNames[slot].color = selected ? UIKit.Positive : HudSkin.TextPrimary;
             }
         }
 

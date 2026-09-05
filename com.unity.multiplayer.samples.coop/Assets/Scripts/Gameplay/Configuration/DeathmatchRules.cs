@@ -9,6 +9,12 @@ namespace Unity.BossRoom.Gameplay.Configuration
         /// <summary>Before the countdown has started (players still loading in).</summary>
         PreGame,
 
+        /// <summary>
+        /// Everyone is in and can move, but the match clock has not started and nothing scores.
+        /// This is the window the on-screen control tutorial runs in.
+        /// </summary>
+        Warmup,
+
         /// <summary>Normal scoring.</summary>
         Normal,
 
@@ -30,14 +36,32 @@ namespace Unity.BossRoom.Gameplay.Configuration
     /// </remarks>
     public static class DeathmatchRules
     {
-        /// <summary>Match length in seconds (5 minutes).</summary>
-        public const float MatchDuration = 300f;
+        /// <summary>Match length in seconds (3 minutes).</summary>
+        public const float MatchDuration = 180f;
+
+        /// <summary>
+        /// Seconds of <see cref="MatchPhase.Warmup"/> before the clock starts.
+        /// </summary>
+        /// <remarks>
+        /// Long enough to walk the player through the controls one at a time (see
+        /// <c>WarmupTutorial</c>) and short enough that someone who already knows them is not kept
+        /// waiting. Players move and cast freely during it, but they cannot be hurt and nothing
+        /// scores, so the practice can't cost or win anything.
+        /// </remarks>
+        public const float WarmupDuration = 30f;
 
         /// <summary>
         /// Seconds remaining at which the match flips to <see cref="MatchPhase.DoubleKills"/>
-        /// (the last 2 minutes).
+        /// (the last 45 seconds).
         /// </summary>
-        public const float DoubleKillsThreshold = 120f;
+        /// <remarks>
+        /// A quarter of the match rather than the old 40% of it, and deliberately <i>later</i> than
+        /// <see cref="BossSpawnTimeRemaining"/> rather than simultaneous with it. The two used to
+        /// fire together, which made the endgame one undifferentiated scramble; staggering them
+        /// gives the boss a window of its own before the hunt opens, so committing to it becomes a
+        /// decision taken in advance and paid for afterwards rather than a coin flip.
+        /// </remarks>
+        public const float DoubleKillsThreshold = 45f;
 
         /// <summary>Points for killing an imp or any other minor NPC.</summary>
         public const int PointsPerNpcKill = 1;
@@ -81,11 +105,20 @@ namespace Unity.BossRoom.Gameplay.Configuration
         public const float PostMatchDelay = 7f;
 
         /// <summary>
-        /// Seconds left on the clock when the boss appears. It shows up for the final stretch only
-        /// (same moment as <see cref="MatchPhase.DoubleKills"/>), so the last two minutes are the
-        /// scramble: double-value player kills *and* the boss on the board at the same time.
+        /// Seconds left on the clock when the boss appears — the final minute, and a little before
+        /// <see cref="DoubleKillsThreshold"/> opens the double-value hunt.
         /// </summary>
-        public const float BossSpawnTimeRemaining = 120f;
+        /// <remarks>
+        /// <para>The gap between the two is the whole mechanic. The boss lands on an otherwise
+        /// normal board, so whoever wants it has to break off and start on it while player kills
+        /// are still worth their ordinary five; then the doubling arrives and everyone standing
+        /// around the boss is suddenly the most valuable target on the map.</para>
+        ///
+        /// <para>When the two fired together this was a coin flip nobody could plan, and the
+        /// shorter match made it worse: with 45 seconds for both, ignoring the boss was simply
+        /// correct. Moving it earlier gives it back a window without lengthening the endgame.</para>
+        /// </remarks>
+        public const float BossSpawnTimeRemaining = 60f;
 
         /// <summary>
         /// Name of an optional empty Transform placed in the middle of the map to mark where the

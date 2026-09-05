@@ -124,17 +124,69 @@ namespace Unity.BossRoom.Gameplay.UI
 
         // ── Content ───────────────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// A number of seconds written the way a person would say it.
+        /// </summary>
+        /// <remarks>
+        /// These pages used to divide by 60 and print "minutos" unconditionally, which was fine
+        /// while every duration on them was a whole number of minutes. The endgame window is now
+        /// 45 seconds, and rounding that to "1 minutos" would be wrong twice over. Retuning a value
+        /// must not be able to make the tutorial lie — that is the whole reason these strings read
+        /// the constants instead of repeating them.
+        /// </remarks>
+        static string Duration(float seconds)
+        {
+            if (seconds < 60f)
+            {
+                return $"{Mathf.RoundToInt(seconds)} segundos";
+            }
+
+            int minutes = Mathf.RoundToInt(seconds / 60f);
+            return minutes == 1 ? "1 minuto" : $"{minutes} minutos";
+        }
+
+        /// <summary>
+        /// The endgame page, which has to describe whatever order the two special events are
+        /// currently tuned to fire in.
+        /// </summary>
+        /// <remarks>
+        /// The boss is meant to land before the doubling, and the gap between them is the point of
+        /// the whole phase — so the copy names that gap rather than describing two things that
+        /// happen "at the end". Both branches are kept because the constants are a tuning knob:
+        /// set them to the same number again and the page must go back to saying so instead of
+        /// promising a window that no longer exists.
+        /// </remarks>
+        static string EndgameCopy()
+        {
+            float gap = DeathmatchRules.BossSpawnTimeRemaining - DeathmatchRules.DoubleKillsThreshold;
+            string doubleAt = Duration(DeathmatchRules.DoubleKillsThreshold);
+
+            if (gap < 1f)
+            {
+                return $"En los últimos {doubleAt} los kills de jugador valen el doble, " +
+                       "y justo ahí aparece el boss.\n\n" +
+                       "Las dos cosas pasan a la vez a propósito: no te alcanza el tiempo para " +
+                       "las dos, así que hay que elegir.";
+            }
+
+            return $"El boss aparece cuando queda {Duration(DeathmatchRules.BossSpawnTimeRemaining)}. " +
+                   $"En los últimos {doubleAt}, además, los kills de jugador valen el doble.\n\n" +
+                   $"Esos {Duration(gap)} de diferencia son la ventana para empezar el boss antes " +
+                   "de que se abra la caza. Si seguís ahí cuando empieza, sos el blanco más caro " +
+                   "del mapa.";
+        }
+
         static Page[] BuildPages()
         {
-            int minutes = Mathf.RoundToInt(DeathmatchRules.MatchDuration / 60f);
-            int doubleAt = Mathf.RoundToInt(DeathmatchRules.DoubleKillsThreshold / 60f);
+            string matchLength = Duration(DeathmatchRules.MatchDuration);
             int boonSeconds = Mathf.RoundToInt(ZoneRules.BoonSeconds);
+            string endgame = EndgameCopy();
 
             return new[]
             {
                 new Page(
                     "TODOS CONTRA TODOS",
-                    $"Una partida dura {minutes} minutos y gana el que más puntos junte.\n\n" +
+                    $"Una partida dura {matchLength} y gana el que más puntos junte.\n\n" +
                     "No hay equipos: cada jugador va por su cuenta, y el mapa además está lleno " +
                     "de imps que no son de nadie.",
                     UIIcons.Icon.Swords),
@@ -148,13 +200,7 @@ namespace Unity.BossRoom.Gameplay.UI
                     $"{Mathf.RoundToInt(DeathmatchRules.RespawnDelay)} segundos.",
                     UIIcons.Icon.Trophy),
 
-                new Page(
-                    "LOS ÚLTIMOS MINUTOS",
-                    $"En los últimos {doubleAt} minutos los kills de jugador valen el doble, " +
-                    "y justo ahí aparece el boss.\n\n" +
-                    "Las dos cosas pasan a la vez a propósito: no te alcanza el tiempo para " +
-                    "las dos, así que hay que elegir.",
-                    UIIcons.Icon.Clock),
+                new Page("EL FINAL", endgame, UIIcons.Icon.Clock),
 
                 new Page(
                     "ZONAS DEL MAPA",

@@ -2,6 +2,7 @@ using System;
 using Mirror;
 using Unity.BossRoom.Gameplay.Configuration;
 using Unity.BossRoom.Gameplay.GameplayObjects;
+using Unity.BossRoom.Gameplay.GameplayObjects.Character;
 using Unity.BossRoom.Gameplay.UI;
 using UnityEngine;
 
@@ -97,6 +98,24 @@ namespace Unity.BossRoom.Gameplay.GameState
         void OnTimeRemainingSync(float oldVal, float newVal) =>
             OnTimeRemainingChangedEvent?.Invoke(oldVal, newVal);
 
+        /// <summary>Seconds left of the warm-up, before the match clock starts.</summary>
+        /// <remarks>
+        /// A clock of its own rather than a reuse of <see cref="m_TimeRemaining"/>. The match
+        /// timer is read as "how much match is left" by everything downstream —
+        /// <see cref="ServerBossSpawner"/> waits for it to fall under
+        /// <see cref="DeathmatchRules.BossSpawnTimeRemaining"/> — so running the warm-up through it
+        /// would put the boss on the map before the match had even started.
+        /// </remarks>
+        [SyncVar(hook = nameof(OnWarmupRemainingSync))]
+        float m_WarmupRemaining;
+
+        public float WarmupRemaining => m_WarmupRemaining;
+
+        public event Action<float, float> OnWarmupRemainingChangedEvent;
+
+        void OnWarmupRemainingSync(float oldVal, float newVal) =>
+            OnWarmupRemainingChangedEvent?.Invoke(oldVal, newVal);
+
         [SyncVar(hook = nameof(OnPhaseSync))]
         MatchPhase m_Phase = MatchPhase.PreGame;
 
@@ -139,19 +158,31 @@ namespace Unity.BossRoom.Gameplay.GameState
             DeathmatchHUD.EnsureInstance();
         }
 
-        /// <summary>Server-only: start the countdown. Idempotent.</summary>
+        /// <summary>
+        /// Server-only: open the warm-up. The match clock itself starts
+        /// <see cref="DeathmatchRules.WarmupDuration"/> seconds later, in <see cref="Update"/>.
+        /// Idempotent.
+        /// </summary>
         public void StartMatch()
         {
             if (!isServer || m_Phase != MatchPhase.PreGame) return;
 
             m_TimeRemaining = MatchDuration;
+            m_WarmupRemaining = DeathmatchRules.WarmupDuration;
             m_SecondAccumulator = 0f;
-            SetPhase(MatchPhase.Normal);
+            SetPhase(MatchPhase.Warmup);
         }
 
         void Update()
         {
             if (!isServer) return;
+
+            if (m_Phase == MatchPhase.Warmup)
+            {
+                TickWarmup();
+                return;
+            }
+
             if (m_Phase != MatchPhase.Normal && m_Phase != MatchPhase.DoubleKills) return;
 
             m_SecondAccumulator += Time.deltaTime;
@@ -174,11 +205,43 @@ namespace Unity.BossRoom.Gameplay.GameState
             }
         }
 
+        /// <summary>
+        /// Server-only: run down the warm-up clock, then hand over to the match proper.
+        /// </summary>
+        /// <remarks>
+        /// Published once a second for the same reason the match timer is — the number on screen
+        /// only ever shows two digits, and the HUD ticks the in-between second locally.
+        /// </remarks>
+        void TickWarmup()
+        {
+            m_SecondAccumulator += Time.deltaTime;
+            if (m_SecondAccumulator < 1f && m_WarmupRemaining > 1f)
+            {
+                return;
+            }
+
+            m_WarmupRemaining = Mathf.Max(0f, m_WarmupRemaining - m_SecondAccumulator);
+            m_SecondAccumulator = 0f;
+
+            if (m_WarmupRemaining <= 0f)
+            {
+                // The match clock has been sitting at its full length all through the warm-up, so
+                // there is nothing to reset here: this is simply the moment it starts moving.
+                SetPhase(MatchPhase.Normal);
+            }
+        }
+
         /// <summary>Server-only: change phase and announce it to clients.</summary>
         void SetPhase(MatchPhase phase)
         {
             if (m_Phase == phase) return;
             m_Phase = phase;
+
+            // Damage immunity is a property of the phase, not of any one character, so it is
+            // switched here — the one place the phase can change — rather than pushed to every
+            // ServerCharacter as players spawn, respawn and join late.
+            ServerCharacter.MatchWarmup = phase == MatchPhase.Warmup;
+
             RpcAnnouncePhase(phase);
         }
 

@@ -62,7 +62,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
         {
-            if (Touchscreen.current == null && !Application.isMobilePlatform)
+            // Un escritorio con pantalla tactil -- o el Editor con la simulacion de
+            // touch encendida -- registra un dispositivo Touchscreen aunque se juegue
+            // con mouse, y eso hacia aparecer los controles tactiles en PC. Que el
+            // dispositivo exista no alcanza: fuera de una plataforma movil, la
+            // presencia de un mouse significa que el jugador no esta usando touch.
+            if (!Application.isMobilePlatform &&
+                (Touchscreen.current == null || Mouse.current != null))
             {
                 return;
             }
@@ -100,9 +106,11 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
             var sprite = CreateRoundedSprite(64);
 
-            m_Track = CreateImage("Track", canvasGO.transform, sprite, new Color(1f, 1f, 1f, 0.18f));
-            m_Fill = CreateImage("Fill", m_Track, sprite, new Color(1f, 1f, 1f, 0.32f));
-            m_Handle = CreateImage("Handle", m_Track, sprite, new Color(1f, 1f, 1f, 0.75f));
+            // Same tint as the joystick: these two are one set of controls.
+            var tint = UI.HudSkin.AccentBlue;
+            m_Track = CreateImage("Track", canvasGO.transform, sprite, new Color(tint.r, tint.g, tint.b, 0.18f));
+            m_Fill = CreateImage("Fill", m_Track, sprite, new Color(tint.r, tint.g, tint.b, 0.34f));
+            m_Handle = CreateImage("Handle", m_Track, sprite, new Color(tint.r, tint.g, tint.b, 0.8f));
             m_HandleImage = m_Handle.GetComponent<Image>();
 
             // Fill grows from the bottom of the track.
@@ -164,7 +172,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
             }
 
             ApplyZoom();
-            m_HandleImage.color = new Color(1f, 1f, 1f, m_ActiveTouchId != -1 ? 1f : 0.75f);
+            var tint = UI.HudSkin.AccentBlue;
+            m_HandleImage.color = new Color(tint.r, tint.g, tint.b, m_ActiveTouchId != -1 ? 1f : 0.8f);
         }
 
         void Layout()

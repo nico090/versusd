@@ -31,6 +31,19 @@ namespace Unity.BossRoom.Gameplay.GameState
         [Inject]
         PersistentGameState m_PersistentGameState;
 
+        /// <summary>
+        /// Whether the server side of this state has already run.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="NetcodeHooks"/> raises OnNetworkSpawnHook from BOTH OnStartServer and
+        /// OnStartClient, so on a host every hook lands twice. Without this the final table was
+        /// filled twice — every player listed twice, in the host's screen and, because the list is
+        /// replicated, in everyone else's — the session was ended twice, and the ranked result was
+        /// reported to the master server twice. <see cref="ServerBossRoomState"/> and
+        /// <see cref="ServerCharSelectState"/> already carry the same flag for the same reason.
+        /// </remarks>
+        bool m_ServerInitialized;
+
         protected override void Awake()
         {
             base.Awake();
@@ -46,10 +59,18 @@ namespace Unity.BossRoom.Gameplay.GameState
                 return;
             }
 
+            if (m_ServerInitialized)
+            {
+                return;
+            }
+
+            m_ServerInitialized = true;
+
             SessionManager<SessionPlayerData>.Instance.OnSessionEnded();
             networkPostGame.WinState = m_PersistentGameState.WinState;
 
             var scoreboard = m_PersistentGameState.FinalScoreboard;
+            networkPostGame.FinalScoreboard.Clear();
             foreach (var entry in scoreboard)
                 networkPostGame.FinalScoreboard.Add(entry);
 

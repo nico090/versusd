@@ -52,6 +52,12 @@ namespace Unity.BossRoom.Gameplay.GameState
             if (msg.NewLifeState != LifeState.Dead && msg.NewLifeState != LifeState.Fainted)
                 return;
 
+            // Nothing scores during the warm-up. Players can't be hurt then (see
+            // ServerCharacter.MatchWarmup), but the imps on the map can be, and a player who
+            // spends the tutorial farming them would start the match already ahead.
+            if (m_NetworkGameState.Phase == MatchPhase.Warmup)
+                return;
+
             // Only a player can score. Everything else — killed by the boss, by an imp, by the
             // environment, or by your own AoE — is worth nothing to anybody. That's the design
             // doc's rule: deaths without an attributable player attacker give no points, and a

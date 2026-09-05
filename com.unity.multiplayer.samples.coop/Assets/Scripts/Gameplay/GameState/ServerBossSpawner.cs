@@ -9,7 +9,7 @@ namespace Unity.BossRoom.Gameplay.GameState
 {
     /// <summary>
     /// Server-only: puts the boss in the middle of the map once, when the match clock reaches
-    /// <see cref="DeathmatchRules.BossSpawnTimeRemaining"/> (the last two minutes) — not at the
+    /// <see cref="DeathmatchRules.BossSpawnTimeRemaining"/> (the final stretch) — not at the
     /// start of the match. One boss per match — it never respawns, so the 20 points for the final
     /// blow can only ever be claimed by one player.
     /// </summary>
@@ -59,7 +59,7 @@ namespace Unity.BossRoom.Gameplay.GameState
                 yield break;
             }
 
-            // Hold until the match clock hits the boss window (the last two minutes). The timer is
+            // Hold until the match clock hits the boss window (the final stretch). The timer is
             // only ticked while the match is actually running, so a pre-game/frozen clock simply
             // keeps us waiting here.
             while (m_GameState.Phase != MatchPhase.Ended &&

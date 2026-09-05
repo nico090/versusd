@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using Mirror;
+using Unity.BossRoom.Gameplay.Configuration;
 using Unity.BossRoom.Gameplay.GameplayObjects;
 using Unity.BossRoom.Gameplay.GameplayObjects.Character;
 using UnityEngine;
@@ -92,6 +93,15 @@ namespace Unity.BossRoom.Gameplay.GameState
 
         IEnumerator CoroSpawnZones()
         {
+            // Nothing lands until the warm-up is over. The first zone would otherwise arrive about
+            // nine seconds in, and the speed and damage boons outlive their zone by
+            // ZoneRules.BoonSeconds — so whoever happened to be standing on it would start the
+            // match buffed for something they did while nobody could be hurt.
+            while (m_GameState != null && m_GameState.Phase == MatchPhase.Warmup)
+            {
+                yield return null;
+            }
+
             // A short head start, so the first zone is something that happens during the match
             // rather than part of the opening picture.
             yield return new WaitForSeconds(ZoneRules.SpawnIntervalSeconds * 0.5f);

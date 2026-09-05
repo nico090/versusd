@@ -85,17 +85,21 @@ namespace Unity.BossRoom.Gameplay.UI
 
         // ── Role palette ──────────────────────────────────────────────────────────────────────
 
-        /// <summary>Warning / leave / destructive.</summary>
-        public static readonly Color Danger = new Color(0.93f, 0.29f, 0.36f, 1f);
+        /// <summary>
+        /// Warning / leave / destructive. Magenta rather than red: it has to be the loudest thing
+        /// on a blue-violet screen, and pure red on this palette reads as an error dialog from
+        /// another program.
+        /// </summary>
+        public static readonly Color Danger = new Color(0.92f, 0.28f, 0.55f, 1f);
 
-        /// <summary>Success / available / ready.</summary>
-        public static readonly Color Positive = new Color(0.35f, 0.87f, 0.55f, 1f);
+        /// <summary>Success / available / ready. Held to teal so it stays inside the cold half.</summary>
+        public static readonly Color Positive = new Color(0.34f, 0.82f, 0.72f, 1f);
 
-        /// <summary>Rewards, winners, and anything else worth a medal.</summary>
-        public static readonly Color Gold = new Color(1f, 0.83f, 0.3f, 1f);
+        /// <summary>Rewards, winners, and anything else worth a medal. The one warm colour left.</summary>
+        public static readonly Color Gold = HudSkin.Gold;
 
         /// <summary>Text laid on top of a filled accent or danger plate.</summary>
-        public static readonly Color OnAccent = new Color(0.02f, 0.06f, 0.11f, 1f);
+        public static readonly Color OnAccent = new Color(0.035f, 0.030f, 0.060f, 1f);
 
         // ── Canvases ──────────────────────────────────────────────────────────────────────────
 
@@ -277,7 +281,9 @@ namespace Unity.BossRoom.Gameplay.UI
             var image = rect.gameObject.AddComponent<Image>();
             image.sprite = ToonMenuSkin.InputFillSprite;
             image.type = Image.Type.Sliced;
-            image.color = new Color(ToonMenuSkin.Accent.r, ToonMenuSkin.Accent.g, ToonMenuSkin.Accent.b, 0.18f);
+            // Lapis, not accent: a rule between sections is another incised line in the stone,
+            // and the bright blue is reserved for the tubes and for what you are meant to press.
+            image.color = ToonMenuSkin.InlayColor;
             image.raycastTarget = false;
 
             Flexible(rect, height: thickness, expandWidth: true);
@@ -387,8 +393,11 @@ namespace Unity.BossRoom.Gameplay.UI
         {
             switch (style)
             {
+                // Titles are cut in amethyst; the blue belongs to the controls. Splitting the
+                // two cold hues by job is what keeps a screen from reading as all chrome, and it
+                // leaves gold meaning nothing but first place.
                 case TextStyle.Display:
-                case TextStyle.Title: return ToonMenuSkin.Accent;
+                case TextStyle.Title: return HudSkin.Amethyst;
                 case TextStyle.Caption: return HudSkin.TextDim;
                 default: return HudSkin.TextPrimary;
             }

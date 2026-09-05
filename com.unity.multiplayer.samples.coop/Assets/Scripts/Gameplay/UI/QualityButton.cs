@@ -23,13 +23,17 @@ namespace Unity.BossRoom.Gameplay.UI
             if (currentLevel < qualityLevels)
             {
                 QualitySettings.IncreaseLevel();
-                m_QualityBtnText.text = QualitySettings.names[QualitySettings.GetQualityLevel()];
             }
             else
             {
                 QualitySettings.SetQualityLevel(0);
-                m_QualityBtnText.text = QualitySettings.names[QualitySettings.GetQualityLevel()];
             }
+
+            m_QualityBtnText.text = QualitySettings.names[QualitySettings.GetQualityLevel()];
+
+            // Kept, so the choice survives the session it was made in. Without this the button
+            // moved the level and the next launch put it straight back.
+            GraphicsQuality.Remember();
         }
     }
 }

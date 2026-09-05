@@ -24,6 +24,13 @@ namespace Unity.BossRoom.Gameplay.UI
         }
 
         [SerializeField] Text m_TimerText;
+
+        /// <summary>
+        /// The word under the clock while the warm-up runs. The countdown up there is standing in
+        /// for the match clock, and a green number on its own does not say which of the two it is;
+        /// this does, for anyone who joined after the banner had already come and gone.
+        /// </summary>
+        [SerializeField] Text m_TimerLabel;
         [SerializeField] Text m_ScoreboardText;
         [SerializeField] Text m_AnnouncementText;
         [SerializeField] Text m_KillFeedText;
@@ -36,6 +43,10 @@ namespace Unity.BossRoom.Gameplay.UI
         /// sync snaps it back to the authoritative value.
         /// </summary>
         float m_DisplayedTime;
+
+        /// <summary>Locally ticked copy of the warm-up clock, for the same reason as
+        /// <see cref="m_DisplayedTime"/> — the server only publishes it once a second.</summary>
+        float m_DisplayedWarmup;
 
         /// <summary>
         /// Clearance kept at the top right for the pause button. Everything this HUD draws in that
@@ -52,7 +63,13 @@ namespace Unity.BossRoom.Gameplay.UI
 
         readonly List<(string text, float expiresAt)> m_KillFeed = new List<(string, float)>();
 
-        static readonly Color k_DoubleKillsColor = new Color(1f, 0.78f, 0.2f); // gold
+        static readonly Color k_DoubleKillsColor = HudSkin.Gold; // the x2 marker is a reward
+
+        /// <summary>
+        /// Warm-up countdown: violet, so it can't be mistaken for the match clock (blue) or for
+        /// its last thirty seconds (red). Was green, which was the only green left in the game.
+        /// </summary>
+        static readonly Color k_WarmupColor = HudSkin.AccentViolet;
 
         /// <summary>
         /// Rank colours for the first three places: gold, silver, bronze. Standings are the one
@@ -88,12 +105,14 @@ namespace Unity.BossRoom.Gameplay.UI
 
             EnsureUI();
             m_NetworkGameState.OnTimeRemainingChangedEvent += OnTimerChanged;
+            m_NetworkGameState.OnWarmupRemainingChangedEvent += OnWarmupChanged;
             m_NetworkGameState.OnPhaseChangedEvent += OnPhaseChanged;
             m_NetworkGameState.OnPhaseAnnouncedEvent += OnPhaseAnnounced;
             m_NetworkGameState.OnKillFeedEvent += OnKill;
             m_NetworkGameState.Scores.Callback += OnScoresChanged;
 
             m_DisplayedTime = m_NetworkGameState.TimeRemaining;
+            m_DisplayedWarmup = m_NetworkGameState.WarmupRemaining;
             RefreshTimer();
             RefreshScoreboard();
         }
@@ -102,6 +121,7 @@ namespace Unity.BossRoom.Gameplay.UI
         {
             if (m_NetworkGameState == null) return;
             m_NetworkGameState.OnTimeRemainingChangedEvent -= OnTimerChanged;
+            m_NetworkGameState.OnWarmupRemainingChangedEvent -= OnWarmupChanged;
             m_NetworkGameState.OnPhaseChangedEvent -= OnPhaseChanged;
             m_NetworkGameState.OnPhaseAnnouncedEvent -= OnPhaseAnnounced;
             m_NetworkGameState.OnKillFeedEvent -= OnKill;
@@ -114,6 +134,12 @@ namespace Unity.BossRoom.Gameplay.UI
             RefreshTimer();
         }
 
+        void OnWarmupChanged(float _, float newVal)
+        {
+            m_DisplayedWarmup = newVal;
+            RefreshTimer();
+        }
+
         void OnPhaseChanged(MatchPhase _, MatchPhase __) => RefreshTimer();
 
         void OnScoresChanged(SyncList<ScoreEntry>.Operation op, int index, ScoreEntry old, ScoreEntry @new)
@@ -121,6 +147,17 @@ namespace Unity.BossRoom.Gameplay.UI
 
         void TickLocalTimer()
         {
+            if (m_NetworkGameState.Phase == MatchPhase.Warmup)
+            {
+                if (m_DisplayedWarmup > 0f)
+                {
+                    m_DisplayedWarmup = Mathf.Max(0f, m_DisplayedWarmup - Time.deltaTime);
+                    RefreshTimer();
+                }
+
+                return;
+            }
+
             if (m_NetworkGameState.Phase != MatchPhase.Normal && m_NetworkGameState.Phase != MatchPhase.DoubleKills)
             {
                 return;
@@ -136,6 +173,22 @@ namespace Unity.BossRoom.Gameplay.UI
         {
             if (m_TimerText == null || m_NetworkGameState == null) return;
 
+            // The match clock stands still at its full length through the warm-up, so showing it
+            // would be a number that never moves. The warm-up's own countdown goes in its place,
+            // which is also what tells a player who missed the banner why nothing is happening yet.
+            if (m_NetworkGameState.Phase == MatchPhase.Warmup)
+            {
+                int warmupSecs = Mathf.CeilToInt(m_DisplayedWarmup);
+                // Same mm:ss shape as the match clock it stands in for, so it reads as a clock
+                // rather than as a stray number.
+                m_TimerText.text = $"{warmupSecs / 60}:{warmupSecs % 60:D2}";
+                m_TimerText.color = k_WarmupColor;
+                ShowTimerLabel(true);
+                return;
+            }
+
+            ShowTimerLabel(false);
+
             float seconds = m_NetworkGameState.Phase == MatchPhase.Ended ? 0f : m_DisplayedTime;
             int mins = Mathf.FloorToInt(seconds / 60f);
             int secs = Mathf.FloorToInt(seconds % 60f);
@@ -145,7 +198,19 @@ namespace Unity.BossRoom.Gameplay.UI
 
             m_TimerText.color = doubleKills
                 ? k_DoubleKillsColor
-                : (seconds <= 30f ? Color.red : HudSkin.AccentCyan);
+                : (seconds <= 30f ? Color.red : HudSkin.AccentBlue);
+        }
+
+        /// <summary>
+        /// Turns the warm-up caption under the clock on or off. Toggled by object rather than by
+        /// blanking the string so it takes no layout space once the match is running.
+        /// </summary>
+        void ShowTimerLabel(bool show)
+        {
+            if (m_TimerLabel != null && m_TimerLabel.gameObject.activeSelf != show)
+            {
+                m_TimerLabel.gameObject.SetActive(show);
+            }
         }
 
         // ---------------------------------------------------------------- announcements
@@ -154,6 +219,14 @@ namespace Unity.BossRoom.Gameplay.UI
         {
             switch (phase)
             {
+                case MatchPhase.Warmup:
+                    ShowAnnouncement("CALENTAMIENTO", k_WarmupColor);
+                    break;
+                case MatchPhase.Normal:
+                    // Only ever announced coming out of the warm-up: Normal is the phase the match
+                    // starts in, and SetPhase is the only thing that fires this.
+                    ShowAnnouncement("¡EMPIEZA LA PARTIDA!", Color.white);
+                    break;
                 case MatchPhase.DoubleKills:
                     ShowAnnouncement("¡KILLS DOBLES!", k_DoubleKillsColor);
                     break;
@@ -252,7 +325,7 @@ namespace Unity.BossRoom.Gameplay.UI
         // Builds a minimal Screen Space Overlay Canvas with the HUD's Text widgets.
         void EnsureUI()
         {
-            if (m_TimerText != null && m_ScoreboardText != null
+            if (m_TimerText != null && m_TimerLabel != null && m_ScoreboardText != null
                 && m_AnnouncementText != null && m_KillFeedText != null) return;
 
             var canvasGO = new GameObject("DeathmatchHUD_Canvas");
@@ -275,6 +348,20 @@ namespace Unity.BossRoom.Gameplay.UI
                 HudSkin.StyleText(m_TimerText);
             }
 
+            // Warm-up caption — directly under the clock's panel, which ends at -84.
+            if (m_TimerLabel == null)
+            {
+                m_TimerLabel = CreateText(canvasGO, "TimerLabel",
+                    anchor: new Vector2(0.5f, 1f), pivot: new Vector2(0.5f, 1f),
+                    position: new Vector2(0f, -86f), size: new Vector2(260f, 22f),
+                    alignment: TextAnchor.UpperCenter, fontSize: 18, bold: true);
+                m_TimerLabel.text = "CALENTAMIENTO";
+                HudSkin.StyleText(m_TimerLabel);
+                // StyleText owns the colour it applies, so the warm-up green goes back on after it.
+                m_TimerLabel.color = k_WarmupColor;
+                m_TimerLabel.gameObject.SetActive(false);
+            }
+
             // Scoreboard — top-right, under the pause button PauseMenuUI parks in the corner.
             // The sample's own gear used to sit on top of these rows; k_TopRightGutter is the
             // clearance both now share.
@@ -286,7 +373,7 @@ namespace Unity.BossRoom.Gameplay.UI
                     alignment: TextAnchor.UpperRight, fontSize: 16, bold: true);
                 header.text = "MARCADOR";
                 HudSkin.StyleText(header, dim: true);
-                AddIcon(header.rectTransform, UIIcons.Icon.Trophy, HudSkin.AccentCyan, 22f);
+                AddIcon(header.rectTransform, UIIcons.Icon.Trophy, HudSkin.AccentBlue, 22f);
 
                 m_ScoreboardText = CreateText(canvasGO, "Scoreboard",
                     anchor: new Vector2(1f, 1f), pivot: new Vector2(1f, 1f),

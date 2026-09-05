@@ -161,7 +161,7 @@ namespace Unity.BossRoom.Gameplay.UI
             row.transform.SetParent(panelRoot, false);
 
             var bar = row.AddComponent<Image>();
-            bar.color = new Color(0.12f, 0.16f, 0.24f, 0.92f);
+            bar.color = ToonMenuSkin.CardFill;
             var rowRect = row.GetComponent<RectTransform>();
             rowRect.anchorMin = new Vector2(0f, 1f);
             rowRect.anchorMax = new Vector2(1f, 1f);
@@ -177,7 +177,7 @@ namespace Unity.BossRoom.Gameplay.UI
             label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             label.fontSize = 14;
             label.alignment = TextAnchor.MiddleLeft;
-            label.color = new Color(0.78f, 0.85f, 0.95f);
+            label.color = HudSkin.TextPrimary;
             var labelRect = labelGO.GetComponent<RectTransform>();
             labelRect.anchorMin = new Vector2(0f, 0f);
             labelRect.anchorMax = new Vector2(0f, 1f);
@@ -188,7 +188,7 @@ namespace Unity.BossRoom.Gameplay.UI
             var fieldGO = new GameObject("Field");
             fieldGO.transform.SetParent(row.transform, false);
             var fieldBg = fieldGO.AddComponent<Image>();
-            fieldBg.color = new Color(0.04f, 0.06f, 0.11f, 0.95f);
+            fieldBg.color = ToonMenuSkin.InputFill;
             var fieldRect = fieldGO.GetComponent<RectTransform>();
             fieldRect.anchorMin = new Vector2(0f, 0f);
             fieldRect.anchorMax = new Vector2(1f, 1f);
@@ -201,7 +201,7 @@ namespace Unity.BossRoom.Gameplay.UI
             text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.fontSize = 14;
             text.alignment = TextAnchor.MiddleLeft;
-            text.color = Color.white;
+            text.color = HudSkin.TextPrimary;
             text.supportRichText = false;
             var textRect = textGO.GetComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero;
@@ -233,7 +233,7 @@ namespace Unity.BossRoom.Gameplay.UI
             // A subtle background bar so the control reads as distinct from the
             // panel and stays legible even if it overlaps the prefab's title.
             var bar = go.AddComponent<Image>();
-            bar.color = new Color(0.12f, 0.16f, 0.24f, 0.92f);
+            bar.color = ToonMenuSkin.CardFill;
             var r = go.GetComponent<RectTransform>();
             r.anchorMin = new Vector2(0f, 1f);
             r.anchorMax = new Vector2(1f, 1f);
@@ -244,7 +244,7 @@ namespace Unity.BossRoom.Gameplay.UI
             // Checkbox background.
             var bgGO = new GameObject("Background");
             bgGO.transform.SetParent(go.transform, false);
-            bgGO.AddComponent<Image>().color = new Color(0.28f, 0.28f, 0.38f);
+            bgGO.AddComponent<Image>().color = ToonMenuSkin.ButtonHighlight;
             var bgR = bgGO.GetComponent<RectTransform>();
             bgR.anchorMin = bgR.anchorMax = new Vector2(0f, 0.5f);
             bgR.pivot = new Vector2(0f, 0.5f);
@@ -255,7 +255,7 @@ namespace Unity.BossRoom.Gameplay.UI
             var ckGO = new GameObject("Checkmark");
             ckGO.transform.SetParent(bgGO.transform, false);
             var ck = ckGO.AddComponent<Image>();
-            ck.color = new Color(0.3f, 0.85f, 0.4f);
+            ck.color = UIKit.Positive;
             var ckR = ckGO.GetComponent<RectTransform>();
             ckR.anchorMin = new Vector2(0.15f, 0.15f);
             ckR.anchorMax = new Vector2(0.85f, 0.85f);
@@ -268,7 +268,7 @@ namespace Unity.BossRoom.Gameplay.UI
             lt.font = GetFont();
             lt.text = "Servidor dedicado  (contenedor en el VPS; si no, se hospeda por relay)";
             lt.fontSize = 12;
-            lt.color = new Color(0.88f, 0.88f, 0.88f);
+            lt.color = HudSkin.TextPrimary;
             lt.alignment = TextAnchor.MiddleLeft;
             var lr = labelGO.GetComponent<RectTransform>();
             lr.anchorMin = Vector2.zero; lr.anchorMax = Vector2.one;
@@ -300,7 +300,7 @@ namespace Unity.BossRoom.Gameplay.UI
 
             var bg = new GameObject("Background");
             bg.transform.SetParent(transform, false);
-            bg.AddComponent<Image>().color = new Color(0.08f, 0.08f, 0.12f, 0.97f);
+            bg.AddComponent<Image>().color = ToonMenuSkin.CardFill;
             var bgR = bg.GetComponent<RectTransform>();
             bgR.anchorMin = bgR.anchorMax = new Vector2(0.5f, 0.5f);
             bgR.sizeDelta = new Vector2(500f, 500f);
@@ -309,10 +309,10 @@ namespace Unity.BossRoom.Gameplay.UI
             float y = 205f;
 
             // ── Header ────────────────────────────────────────────────────────
-            PlaceText(bg.transform, "Crear sala", y, 480f, 40f, 26, FontStyle.Bold, Color.white);
+            PlaceText(bg.transform, "Crear sala", y, 480f, 40f, 26, FontStyle.Bold, HudSkin.TextPrimary);
             y -= 44f;
             PlaceText(bg.transform, "Vas a ser el anfitrión: los demás se conectan a ti", y, 480f, 24f, 12,
-                FontStyle.Italic, new Color(0.6f, 0.7f, 0.85f));
+                FontStyle.Italic, HudSkin.TextDim);
             y -= 32f;
 
             // ── Divider ───────────────────────────────────────────────────────
@@ -320,7 +320,7 @@ namespace Unity.BossRoom.Gameplay.UI
             y -= 20f;
 
             // ── Room name ─────────────────────────────────────────────────────
-            PlaceText(bg.transform, "Nombre de la sala", y, 450f, 22f, 12, FontStyle.Normal, new Color(0.75f, 0.75f, 0.75f));
+            PlaceText(bg.transform, "Nombre de la sala", y, 450f, 22f, 12, FontStyle.Normal, HudSkin.TextDim);
             y -= 26f;
             m_SessionNameInputField = MakeInputField(bg.transform,
                 "Mi sala  (déjalo vacío para un nombre al azar)", ref y, false, 450f);
@@ -340,7 +340,7 @@ namespace Unity.BossRoom.Gameplay.UI
             pwRT.anchoredPosition = new Vector2(0f, y - 29f);
             m_PasswordRow = pwRow;
 
-            PlaceText(pwRow.transform, "Contraseña", 29f, 450f, 22f, 12, FontStyle.Normal, new Color(0.75f, 0.75f, 0.75f));
+            PlaceText(pwRow.transform, "Contraseña", 29f, 450f, 22f, 12, FontStyle.Normal, HudSkin.TextDim);
             float innerY = 4f;
             m_PasswordField = MakeInputField(pwRow.transform, "room password…", ref innerY, true, 450f);
             y -= 66f;
@@ -357,7 +357,7 @@ namespace Unity.BossRoom.Gameplay.UI
 
             // ── Create button ─────────────────────────────────────────────────
             MakeButton(bg.transform, "Crear sala", new Vector2(0f, y), OnCreateClick,
-                new Color(0.14f, 0.48f, 0.18f), 220f, 46f);
+                Color.Lerp(ToonMenuSkin.ButtonFill, UIKit.Positive, 0.5f), 220f, 46f);
         }
 
         // ── UI helpers ────────────────────────────────────────────────────────
@@ -387,7 +387,7 @@ namespace Unity.BossRoom.Gameplay.UI
         {
             var go = new GameObject("Divider");
             go.transform.SetParent(parent, false);
-            go.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.08f);
+            go.AddComponent<Image>().color = ToonMenuSkin.InlayColor;
             var r = go.GetComponent<RectTransform>();
             r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
             r.sizeDelta = new Vector2(460f, 1f);
@@ -398,7 +398,7 @@ namespace Unity.BossRoom.Gameplay.UI
         {
             var go = new GameObject("InputField");
             go.transform.SetParent(parent, false);
-            go.AddComponent<Image>().color = new Color(0.22f, 0.22f, 0.30f);
+            go.AddComponent<Image>().color = ToonMenuSkin.ButtonFill;
             var r = go.GetComponent<RectTransform>();
             r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
             r.sizeDelta = new Vector2(width, 42f);
@@ -408,7 +408,7 @@ namespace Unity.BossRoom.Gameplay.UI
             var textGO = new GameObject("Text");
             textGO.transform.SetParent(go.transform, false);
             var it = textGO.AddComponent<Text>();
-            it.font = GetFont(); it.fontSize = 14; it.color = Color.white;
+            it.font = GetFont(); it.fontSize = 14; it.color = HudSkin.TextPrimary;
             it.alignment = TextAnchor.MiddleLeft; it.supportRichText = false;
             var itr = textGO.GetComponent<RectTransform>();
             itr.anchorMin = Vector2.zero; itr.anchorMax = Vector2.one;
@@ -418,7 +418,7 @@ namespace Unity.BossRoom.Gameplay.UI
             phGO.transform.SetParent(go.transform, false);
             var ph = phGO.AddComponent<Text>();
             ph.font = GetFont(); ph.text = placeholder; ph.fontSize = 14;
-            ph.fontStyle = FontStyle.Italic; ph.color = new Color(0.45f, 0.45f, 0.45f);
+            ph.fontStyle = FontStyle.Italic; ph.color = HudSkin.TextDim;
             ph.alignment = TextAnchor.MiddleLeft;
             var phr = phGO.GetComponent<RectTransform>();
             phr.anchorMin = Vector2.zero; phr.anchorMax = Vector2.one;
@@ -444,7 +444,7 @@ namespace Unity.BossRoom.Gameplay.UI
             // Background checkbox
             var bgGO = new GameObject("Background");
             bgGO.transform.SetParent(go.transform, false);
-            bgGO.AddComponent<Image>().color = new Color(0.28f, 0.28f, 0.38f);
+            bgGO.AddComponent<Image>().color = ToonMenuSkin.ButtonHighlight;
             var bgR = bgGO.GetComponent<RectTransform>();
             bgR.anchorMin = bgR.anchorMax = new Vector2(0f, 0.5f);
             bgR.pivot = new Vector2(0f, 0.5f);
@@ -455,7 +455,7 @@ namespace Unity.BossRoom.Gameplay.UI
             var ckGO = new GameObject("Checkmark");
             ckGO.transform.SetParent(bgGO.transform, false);
             var ck = ckGO.AddComponent<Image>();
-            ck.color = new Color(0.3f, 0.85f, 0.4f);
+            ck.color = UIKit.Positive;
             var ckR = ckGO.GetComponent<RectTransform>();
             ckR.anchorMin = new Vector2(0.15f, 0.15f);
             ckR.anchorMax = new Vector2(0.85f, 0.85f);
@@ -466,7 +466,7 @@ namespace Unity.BossRoom.Gameplay.UI
             labelGO.transform.SetParent(go.transform, false);
             var lt = labelGO.AddComponent<Text>();
             lt.font = GetFont(); lt.text = label; lt.fontSize = 13;
-            lt.color = new Color(0.88f, 0.88f, 0.88f);
+            lt.color = HudSkin.TextPrimary;
             lt.alignment = TextAnchor.MiddleLeft;
             var lr = labelGO.GetComponent<RectTransform>();
             lr.anchorMin = Vector2.zero; lr.anchorMax = Vector2.one;
@@ -494,7 +494,7 @@ namespace Unity.BossRoom.Gameplay.UI
             tGO.transform.SetParent(go.transform, false);
             var t = tGO.AddComponent<Text>();
             t.font = GetFont(); t.text = label; t.fontSize = 15;
-            t.fontStyle = FontStyle.Bold; t.color = Color.white;
+            t.fontStyle = FontStyle.Bold; t.color = HudSkin.TextPrimary;
             t.alignment = TextAnchor.MiddleCenter;
             var tr = tGO.GetComponent<RectTransform>();
             tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one;

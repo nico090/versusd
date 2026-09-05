@@ -86,7 +86,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
         {
-            if (Touchscreen.current == null && !Application.isMobilePlatform)
+            // Un escritorio con pantalla tactil -- o el Editor con la simulacion de
+            // touch encendida -- registra un dispositivo Touchscreen aunque se juegue
+            // con mouse, y eso hacia aparecer los controles tactiles en PC. Que el
+            // dispositivo exista no alcanza: fuera de una plataforma movil, la
+            // presencia de un mouse significa que el jugador no esta usando touch.
+            if (!Application.isMobilePlatform &&
+                (Touchscreen.current == null || Mouse.current != null))
             {
                 return;
             }

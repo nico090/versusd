@@ -1,4 +1,5 @@
 using Unity.BossRoom.Gameplay.GameplayObjects;
+using Unity.BossRoom.Gameplay.UI;
 using Unity.BossRoom.Gameplay.GameplayObjects.Character;
 using UnityEngine;
 using UnityEngine.UI;
@@ -39,7 +40,8 @@ namespace Unity.BossRoom.Gameplay.UserInput
         const float k_GroundOffset = 0.15f;
 
         static readonly Color k_FreeAimColor = new Color(1f, 1f, 1f, 0.32f);
-        static readonly Color k_AssistedColor = new Color(1f, 0.42f, 0.32f, 0.75f);
+        static readonly Color k_AssistedColor = new Color(HudSkin.AccentViolet.r, HudSkin.AccentViolet.g,
+            HudSkin.AccentViolet.b, 0.8f);
 
         Camera m_Camera;
         RectTransform m_Line;

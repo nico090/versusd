@@ -51,7 +51,13 @@ namespace Unity.BossRoom.Gameplay.UserInput
         static void Bootstrap()
         {
             // No point on platforms without touch (desktop editor with no touch simulation, etc.).
-            if (Touchscreen.current == null && !Application.isMobilePlatform)
+            // Un escritorio con pantalla tactil -- o el Editor con la simulacion de
+            // touch encendida -- registra un dispositivo Touchscreen aunque se juegue
+            // con mouse, y eso hacia aparecer los controles tactiles en PC. Que el
+            // dispositivo exista no alcanza: fuera de una plataforma movil, la
+            // presencia de un mouse significa que el jugador no esta usando touch.
+            if (!Application.isMobilePlatform &&
+                (Touchscreen.current == null || Mouse.current != null))
             {
                 return;
             }
@@ -80,8 +86,11 @@ namespace Unity.BossRoom.Gameplay.UserInput
 
             var circle = CreateCircleSprite(128);
 
-            m_Background = CreateImage("Background", canvasGO.transform, circle, new Color(1f, 1f, 1f, 0.25f));
-            m_Handle = CreateImage("Handle", m_Background, circle, new Color(1f, 1f, 1f, 0.5f));
+            // Tinted rather than plain white: the touch controls are UI too, and the blue tube
+            // is what says so.
+            var tint = UI.HudSkin.AccentBlue;
+            m_Background = CreateImage("Background", canvasGO.transform, circle, new Color(tint.r, tint.g, tint.b, 0.22f));
+            m_Handle = CreateImage("Handle", m_Background, circle, new Color(tint.r, tint.g, tint.b, 0.55f));
         }
 
         static RectTransform CreateImage(string name, Transform parent, Sprite sprite, Color color)

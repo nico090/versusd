@@ -41,9 +41,9 @@ namespace Unity.BossRoom.Gameplay.UI
         /// </summary>
         static readonly Color[] k_MedalColors =
         {
-            new Color(1f, 0.83f, 0.3f, 1f),    // gold
-            new Color(0.85f, 0.88f, 0.92f, 1f), // silver
-            new Color(0.89f, 0.6f, 0.35f, 1f),  // bronze
+            new Color(0.86f, 0.74f, 0.42f, 1f), // gold leaf — first place, and nothing else
+            new Color(0.78f, 0.80f, 0.90f, 1f), // cold silver
+            new Color(0.60f, 0.50f, 0.86f, 1f), // amethyst, standing in for bronze
         };
 
         ServerPostGameState m_PostGameState;
@@ -244,7 +244,7 @@ namespace Unity.BossRoom.Gameplay.UI
             if (m_RuntimeHeadline != null)
             {
                 m_RuntimeHeadline.text = !hasResults ? string.Empty : localWon ? "¡GANASTE!" : loserHeadline;
-                m_RuntimeHeadline.color = localWon ? new Color(1f, 0.83f, 0.30f) : Color.white;
+                m_RuntimeHeadline.color = localWon ? UIKit.Gold : HudSkin.TextPrimary;
             }
         }
 
@@ -274,7 +274,7 @@ namespace Unity.BossRoom.Gameplay.UI
             Color accent = podium ? k_MedalColors[rank] : HudSkin.TextDim;
 
             var row = UIKit.Strip(m_RankingRows, "Rank " + (rank + 1),
-                new Color(0.09f, 0.13f, 0.22f, isLocal ? 0.95f : 0.6f), 64f);
+                new Color(0.105f, 0.098f, 0.165f, isLocal ? 0.95f : 0.6f), 64f);
 
             if (isLocal)
             {

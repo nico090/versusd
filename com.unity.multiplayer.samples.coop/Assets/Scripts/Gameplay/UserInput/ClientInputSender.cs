@@ -240,6 +240,31 @@ namespace Unity.BossRoom.Gameplay.UserInput
         /// </summary>
         public ServerCharacter CurrentAssistTarget => m_LocalAssistTarget;
 
+        /// <summary>
+        /// True on any frame the local player is actually feeding movement input — keys, stick or
+        /// on-screen joystick alike.
+        /// </summary>
+        /// <remarks>
+        /// Exists for the warm-up tutorial, which has to know that the player has moved without
+        /// caring how. Reading the bindings a second time from outside would answer for the
+        /// keyboard only and would go stale the moment anything is rebound; this is the same bool
+        /// the movement command is sent from. Static because there is one local player, and
+        /// cleared in <see cref="OnStopClient"/> so it can't survive the character it describes.
+        /// </remarks>
+        public static bool LocalMoveInputActive { get; private set; }
+
+        /// <summary>
+        /// Raised when the local player asks for an action — mouse, key or action-bar button.
+        /// </summary>
+        /// <remarks>
+        /// Hung off <see cref="RequestAction"/> rather than off each call site because that is the
+        /// single funnel every input route already passes through, so a tutorial step reading
+        /// "press this" is satisfied by whichever of the three the player actually used. Key
+        /// releases are not reported: they arrive as a second request for the same action and
+        /// would otherwise count as a second press.
+        /// </remarks>
+        public static event Action<ActionID> LocalActionRequested;
+
         /// <summary>Where the shot leaves from, for drawing the aim line.</summary>
         public Vector3 AimOrigin => m_PhysicsWrapper.Transform.position;
 
@@ -305,6 +330,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             if (LocalInstance == this)
             {
                 LocalInstance = null;
+                LocalMoveInputActive = false;
             }
 
             if (m_ServerCharacter)
@@ -432,6 +458,7 @@ namespace Unity.BossRoom.Gameplay.UserInput
             // runtime; see MobileMovementJoystick).
             moveInput = Vector2.ClampMagnitude(moveInput + MobileMovementJoystick.MovementInput, 1f);
             bool moving = moveInput.sqrMagnitude > 0.01f;
+            LocalMoveInputActive = moving;
 
             Vector3 moveDir = moving ? CameraRelativeMove(moveInput) : Vector3.zero;
 
@@ -634,6 +661,11 @@ namespace Unity.BossRoom.Gameplay.UserInput
         {
             Assert.IsNotNull(GameDataSource.Instance.GetActionPrototypeByID(actionID),
                 $"Action {actionID} must be in GameDataSource prototypes!");
+
+            if (!IsReleaseStyle(triggerStyle))
+            {
+                LocalActionRequested?.Invoke(actionID);
+            }
 
             if (m_ActionRequestCount < m_ActionRequests.Length)
             {

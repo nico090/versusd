@@ -105,8 +105,9 @@ namespace Unity.BossRoom.Gameplay.GameState
                 SpawnPlayer((ulong)(uint)conn.connectionId, false);
             }
 
-            // Players are in — start the clock. The spawner arms itself now but holds the boss back
-            // until the last two minutes of the match.
+            // Players are in — open the warm-up, which starts the match clock behind it. Both
+            // spawners arm themselves now but hold off: the zones until the warm-up is over, and
+            // the boss until the final minute of the match.
             ServerCharacter.MatchInputFrozen = false;
             networkGameState.StartMatch();
             m_BossSpawner = ServerBossSpawner.Create(m_PlayerSpawnPoints, networkGameState);
@@ -132,6 +133,9 @@ namespace Unity.BossRoom.Gameplay.GameState
                 m_ZoneSpawner = null;
             }
             ServerCharacter.MatchInputFrozen = false;
+            // Both match-wide flags are statics, so a match that ended mid-warm-up would otherwise
+            // leave the next one's players unkillable.
+            ServerCharacter.MatchWarmup = false;
 
             if (m_LifeStateChangedEventMessageSubscriber != null)
             {

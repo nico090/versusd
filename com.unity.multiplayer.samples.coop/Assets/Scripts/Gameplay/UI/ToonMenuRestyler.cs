@@ -50,17 +50,107 @@ namespace Unity.BossRoom.Gameplay.UI
         /// <summary>Scenes that are menus. Only these get the vignette backdrop.</summary>
         static readonly string[] k_MenuScenes = { "Startup", "MainMenu", "CharSelect", "PostGame" };
 
+        /// <summary>How much of this pass a given canvas gets.</summary>
+        enum Pass
+        {
+            /// <summary>Left alone entirely.</summary>
+            Skip,
+
+            /// <summary>
+            /// Colour only: text is put into the palette and imported art is repainted, but
+            /// nothing is reshaped, re-roled or given an icon.
+            /// </summary>
+            ChromeOnly,
+
+            /// <summary>The lot: shapes, roles, icons, cards, translation.</summary>
+            Full,
+        }
+
         /// <summary>
-        /// Canvases this pass must not touch, matched as substrings of the root canvas name.
-        /// The in-game HUD is the whole list: it is either dressed by <see cref="HudSkin"/>
-        /// already, drawn in world space over a character, or a debug overlay.
+        /// Canvases this pass must not touch at all: everything this project draws itself, which
+        /// is already wearing <see cref="HudSkin"/>, plus the debug overlays.
         /// </summary>
         static readonly string[] k_SkippedCanvases =
         {
-            "BossRoomHudCanvas", "Hero Action Bar", "Hero Emote Bar", "PartyHUD", "AllyHUD",
             "DeathmatchHUD", "Debug Overlay", "ControlsHintPanel", "MobileMovementJoystick",
             "MobileZoomBar", "AimIndicator", "UIHealth", "UIName", "NetworkOverlay",
             k_BackdropName,
+        };
+
+        /// <summary>
+        /// The sample's in-game HUD: repainted but never restructured.
+        /// </summary>
+        /// <remarks>
+        /// These used to be on the skip list outright, which is why the action bar and the party
+        /// panel stayed gold and brown while every menu around them went blue. They cannot take
+        /// the full pass — their plates are laid out to the pixel around ability icons, and
+        /// turning those into cards would wreck a HUD that works — but there is nothing stopping
+        /// their colours from joining the rest of the game.
+        /// </remarks>
+        static readonly string[] k_ChromeOnlyCanvases =
+        {
+            "BossRoomHudCanvas", "Hero Action Bar", "Hero Emote Bar", "PartyHUD", "AllyHUD",
+        };
+
+        /// <summary>
+        /// Art that must keep the colours it was drawn with: the ability, emote and class icons
+        /// (a player reads those by colour as much as by shape), the gauges, and the credits
+        /// logos, which belong to other people.
+        /// </summary>
+        static readonly string[] k_ProtectedArt =
+        {
+            "_atk", "_skill", "_symbol", "emote", "action_", "_help_", "healthbar",
+            "checkmark", "logo", "br_icon",
+        };
+
+        /// <summary>
+        /// Repainted even when <see cref="k_ProtectedArt"/> matches: plates, frames, backgrounds
+        /// and banners are chrome whatever they are named after. The emote bar is the case that
+        /// needs this — its buttons are "ui_emote_btn" and its icons are "ui_emote_dance", and
+        /// only one of those two is a drawing worth keeping.
+        /// </summary>
+        static readonly string[] k_ChromeArt =
+        {
+            "_btn", "_bg", "_frame", "_box", "dialog", "panel", "title",
+        };
+
+        /// <summary>Art that reads as "leave": repainted in the magenta ramp instead.</summary>
+        static readonly string[] k_DangerArt = { "exit" };
+
+        /// <summary>
+        /// Art that already arrives wearing the theme, so this pass leaves it exactly as it is:
+        /// neither swapped for a generated surface nor pushed through the palette ramp.
+        /// </summary>
+        /// <remarks>
+        /// <para>These PNGs were regenerated from the Age of Darkness / gothic skill-tree
+        /// references in the blue-violet gamut (see <c>UIThemeGen/</c>), reading their palette
+        /// from <see cref="HudSkin"/> — the same source this pass uses. Recolouring them a second
+        /// time is not a no-op: the ramp maps luminance onto one hue, which flattens the
+        /// deliberate split between the violet pieces and the blue ones (the tank abilities and
+        /// the pick-up actions are blue on purpose).</para>
+        ///
+        /// <para>The reason this pass replaces prefab art in the first place — that hand-edited
+        /// UI prefabs do not reliably reach a build — does not apply here. These are texture
+        /// files, and a texture swap survives the Editor cache and the build untouched.</para>
+        /// </remarks>
+        static readonly HashSet<string> k_ThemedArt = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "button_Disabled", "inputfield_Blank", "ui_action_pickup", "ui_action_putdown",
+            "ui_archer_atk", "ui_archer_skill1", "ui_archer_skill2", "ui_archer_skill3",
+            "ui_archer_symbol_active", "ui_archer_symbol_inactive", "ui_bg_gradient", "ui_bg_gradient2",
+            "ui_blurred_square", "ui_btn_blank", "ui_btn_disabled", "ui_btn_exit",
+            "ui_btn_randomize", "ui_btn_ready_dwn", "ui_btn_ready_up", "ui_char_box_bg_selected",
+            "ui_char_box_glow", "ui_char_box_ovr_avail", "ui_char_box_ovr_selected", "ui_char_info_frame",
+            "ui_char_select_title", "ui_char_select_title2", "ui_checkmark", "ui_connecting",
+            "ui_dialog", "ui_dropdown_arrow", "ui_emote_cheer", "ui_emote_dance",
+            "ui_emote_sit", "ui_emote_wave", "ui_healthbar", "ui_healthbar_bg",
+            "ui_hero_bg", "ui_mage_atk", "ui_mage_skill1", "ui_mage_skill2",
+            "ui_mage_symbol_active", "ui_mage_symbol_inactive", "ui_ptag_1", "ui_ptag_2",
+            "ui_ptag_3", "ui_ptag_4", "ui_ptag_5", "ui_ptag_6",
+            "ui_ptag_7", "ui_ptag_8", "ui_ptag_glow", "ui_revive",
+            "ui_rogue_atk", "ui_rogue_skill1", "ui_rogue_skill2", "ui_rogue_symbol_active",
+            "ui_rogue_symbol_inactive", "ui_scroll_frame", "ui_sound_settings", "ui_tank_atk",
+            "ui_tank_skill1", "ui_tank_skill2", "ui_tank_symbol_active", "ui_tank_symbol_inactive",
         };
 
         /// <summary>
@@ -166,7 +256,13 @@ namespace Unity.BossRoom.Gameplay.UI
             {
                 // Nested canvases are reached through their root, so visiting them again would
                 // only re-walk the same subtree.
-                if (!canvas.isRootCanvas || canvas.renderMode == RenderMode.WorldSpace || IsSkipped(canvas.name))
+                if (!canvas.isRootCanvas || canvas.renderMode == RenderMode.WorldSpace)
+                {
+                    continue;
+                }
+
+                var pass = PassFor(canvas.name);
+                if (pass == Pass.Skip)
                 {
                     continue;
                 }
@@ -195,7 +291,12 @@ namespace Unity.BossRoom.Gameplay.UI
                         continue;
                     }
 
-                    Apply(graphic, canvasSize);
+                    Apply(graphic, canvasSize, pass);
+                }
+
+                if (pass != Pass.Full)
+                {
+                    continue;
                 }
 
                 // Translation is deliberately outside the once-only gate above: half of these
@@ -213,11 +314,21 @@ namespace Unity.BossRoom.Gameplay.UI
             }
         }
 
-        static bool IsSkipped(string canvasName)
+        static Pass PassFor(string canvasName)
         {
-            foreach (var skipped in k_SkippedCanvases)
+            if (Matches(canvasName, k_SkippedCanvases))
             {
-                if (canvasName.IndexOf(skipped, StringComparison.OrdinalIgnoreCase) >= 0)
+                return Pass.Skip;
+            }
+
+            return Matches(canvasName, k_ChromeOnlyCanvases) ? Pass.ChromeOnly : Pass.Full;
+        }
+
+        static bool Matches(string name, string[] needles)
+        {
+            foreach (var needle in needles)
+            {
+                if (name.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     return true;
                 }
@@ -226,19 +337,80 @@ namespace Unity.BossRoom.Gameplay.UI
             return false;
         }
 
-        void Apply(Graphic graphic, Vector2 canvasSize)
+        void Apply(Graphic graphic, Vector2 canvasSize, Pass pass)
         {
             switch (graphic)
             {
                 case TMP_Text tmpText:
-                    StyleTmpText(tmpText);
+                    if (pass == Pass.ChromeOnly)
+                    {
+                        // isLabel false on purpose: upper-casing and tracking out a player's name
+                        // or a cooldown number would be restructuring, not repainting.
+                        ToonMenuSkin.StyleText(tmpText, false);
+                    }
+                    else
+                    {
+                        StyleTmpText(tmpText);
+                    }
+
                     break;
                 case Text text:
                     ToonMenuSkin.StyleText(text);
                     break;
                 case Image image:
-                    StyleImage(image, canvasSize);
+                    if (pass == Pass.ChromeOnly)
+                    {
+                        RepaintArt(image);
+                    }
+                    else
+                    {
+                        StyleImage(image, canvasSize);
+                    }
+
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Puts imported art into the palette in place: the drawing is kept, the hue is not.
+        /// </summary>
+        /// <remarks>
+        /// A tint on the <see cref="Image"/> cannot do this — multiplying gold by blue gives mud —
+        /// so the pixels themselves are remapped once, by <see cref="UIPaletteRecolor"/>, and
+        /// cached. Icons, gauges and other people's logos are left exactly as they were.
+        /// </remarks>
+        static void RepaintArt(Image image)
+        {
+            var sprite = image.sprite;
+            if (sprite == null || image.type == Image.Type.Filled
+                || image.GetComponent<Mask>() != null
+                || image.GetComponent<RectMask2D>() != null)
+            {
+                return;
+            }
+
+            if (k_ThemedArt.Contains(sprite.name))
+            {
+                return;
+            }
+
+            if (Matches(sprite.name, k_ProtectedArt) && !Matches(sprite.name, k_ChromeArt))
+            {
+                return;
+            }
+
+            var ramp = Matches(sprite.name, k_DangerArt)
+                ? UIPaletteRecolor.Ramp.Danger
+                : UIPaletteRecolor.Ramp.Cold;
+
+            image.sprite = UIPaletteRecolor.Get(sprite, ramp);
+
+            // A coloured tint over the repainted sprite would drag it straight back out of the
+            // palette, so a saturated one is dropped and only its alpha kept.
+            Color.RGBToHSV(image.color, out _, out float saturation, out _);
+            if (saturation > 0.12f)
+            {
+                image.color = new Color(1f, 1f, 1f, image.color.a);
             }
         }
 
@@ -327,15 +499,18 @@ namespace Unity.BossRoom.Gameplay.UI
             }
 
             // Anything inside a button is part of that button's face — its own highlight, its
-            // icon backing. The button has already been dressed as one piece.
+            // icon backing — and the button has already been dressed as one piece. It still gets
+            // repainted, though: the exit cross and the ready badge live here, and leaving them
+            // out is exactly how a screen ends up half restyled.
             if (gameObject.GetComponentInParent<Selectable>(true) != null)
             {
+                RepaintArt(image);
                 return;
             }
 
             if (!IsReplaceable(image))
             {
-                MaybeGlowArt(image);
+                StyleArt(image);
                 return;
             }
 
@@ -396,8 +571,9 @@ namespace Unity.BossRoom.Gameplay.UI
 
             if (!IsReplaceable(image))
             {
-                // Keep the art, take the feel: an illustrated button still gets to swell and
-                // squash under the pointer.
+                // Keep the drawing, take the palette and the feel: an illustrated button is
+                // repainted in place and still gets to swell and squash under the pointer.
+                RepaintArt(image);
                 ToonMenuSkin.AddMotion(selectable, image, null);
                 return;
             }
@@ -657,10 +833,18 @@ namespace Unity.BossRoom.Gameplay.UI
         static bool IsReplaceable(Image image)
         {
             // A plain untextured quad is a surface by definition — there is no art to lose.
-            return image.sprite == null || k_ReplaceableSprites.Contains(image.sprite.name);
+            if (image.sprite == null)
+            {
+                return true;
+            }
+
+            // Themed art is art, however generic its name sounds: ui_btn_blank and ui_dialog are
+            // now drawn plates, not blank surfaces waiting for one.
+            return k_ReplaceableSprites.Contains(image.sprite.name)
+                   && !k_ThemedArt.Contains(image.sprite.name);
         }
 
-        static void MaybeGlowArt(Image image)
+        static void StyleArt(Image image)
         {
             if (image.sprite == null)
             {
@@ -672,6 +856,11 @@ namespace Unity.BossRoom.Gameplay.UI
                 ReplaceWithWordmark(image);
                 return;
             }
+
+            // Everything the pass will not reshape still gets repainted: the character-select
+            // banner, the frames, the plates. This is the half of the restyle that used to be
+            // missing — a screen where only the blank plates changed colour reads as half-finished.
+            RepaintArt(image);
 
             if (!k_GlowingArt.Contains(image.sprite.name))
             {

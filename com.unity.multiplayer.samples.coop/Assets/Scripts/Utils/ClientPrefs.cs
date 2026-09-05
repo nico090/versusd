@@ -15,6 +15,8 @@ namespace Unity.BossRoom.Utils
         const string k_AvailableProfilesKey = "AvailableProfiles";
         const string k_ControlsHintExpandedKey = "ControlsHintExpanded";
         const string k_TutorialSeenKey = "TutorialSeen";
+        const string k_WarmupTutorialSeenKey = "WarmupTutorialSeen";
+        const string k_GraphicsQualityKey = "GraphicsQuality";
 
         const float k_DefaultMasterVolume = 0.5f;
         const float k_DefaultMusicVolume = 0.8f;
@@ -73,6 +75,40 @@ namespace Unity.BossRoom.Utils
         public static void SetTutorialSeen(bool seen)
         {
             PlayerPrefs.SetInt(k_TutorialSeenKey, seen ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+
+        /// <summary>
+        /// Whether the in-match control walkthrough has already run to its end on this install.
+        /// </summary>
+        /// <remarks>
+        /// Separate from <see cref="GetTutorialSeen"/>, which belongs to the rules wizard in the
+        /// menu. They teach different things, are dismissed in different places, and a player who
+        /// read the rules has still never been shown where the attack button is.
+        /// </remarks>
+        public static bool GetWarmupTutorialSeen() => PlayerPrefs.GetInt(k_WarmupTutorialSeenKey, 0) != 0;
+
+        public static void SetWarmupTutorialSeen(bool seen)
+        {
+            PlayerPrefs.SetInt(k_WarmupTutorialSeenKey, seen ? 1 : 0);
+            PlayerPrefs.Save();
+        }
+
+        /// <summary>
+        /// The quality level the player last chose, by name, or an empty string if they never
+        /// touched it.
+        /// </summary>
+        /// <remarks>
+        /// Stored by name and not by index on purpose: the project ships two sets of levels with
+        /// repeated names, and an index written today would point at a different preset the moment
+        /// anybody adds or reorders one. A name that no longer exists simply falls back to the
+        /// default, which is the failure we want.
+        /// </remarks>
+        public static string GetGraphicsQuality() => PlayerPrefs.GetString(k_GraphicsQualityKey, string.Empty);
+
+        public static void SetGraphicsQuality(string levelName)
+        {
+            PlayerPrefs.SetString(k_GraphicsQualityKey, levelName);
             PlayerPrefs.Save();
         }
 

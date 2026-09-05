@@ -59,7 +59,7 @@ namespace Unity.BossRoom.Gameplay.UI
 
         public void SetLockedIn(bool lockedIn)
         {
-            m_ReadyButtonImage.color = lockedIn ? Color.green : Color.white;
+            m_ReadyButtonImage.color = lockedIn ? UIKit.Positive : Color.white;
             m_IsLockedIn = lockedIn;
             m_Checkmark.SetActive(lockedIn);
         }

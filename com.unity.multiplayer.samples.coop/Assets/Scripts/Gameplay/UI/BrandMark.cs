@@ -18,25 +18,28 @@ namespace Unity.BossRoom.Gameplay.UI
     /// cache. Set heavy, tracked out, contoured and lit from behind, type reads as a logo at
     /// title size, and it stays sharp at any resolution the game runs at.</para>
     ///
-    /// <para><b>The second colour.</b> Everything else in the UI is cyan on near-black by
-    /// design. The mark is the one place a second hue is allowed — the D is magenta — because a
-    /// logo has to be identifiable at a glance and monochrome chrome is not. Keeping that hue
-    /// out of the rest of the interface is what stops it competing with the semantic colours
-    /// (gold for winners, red for danger, green for ready).</para>
+    /// <para><b>The second colour.</b> The rest of the UI is cool bone and lapis on basalt, lit
+    /// by a blue tube. The mark is where the other tube shows up: the D burns violet, because a
+    /// logo has to be identifiable at a glance and monochrome chrome is not. It used to be a
+    /// magenta that belonged to no other part of the game; taking it into the palette's own violet
+    /// is what makes the wordmark look lit by the same room as everything behind it.
     /// </remarks>
     public static class BrandMark
     {
         /// <summary>The game's name, split where the accent colour takes over.</summary>
         public const string NameStem = "VERSUS";
 
-        /// <summary>The tail of the name, drawn in <see cref="Magenta"/>.</summary>
+        /// <summary>The tail of the name, drawn in <see cref="MarkViolet"/>.</summary>
         public const string NameAccent = "D";
 
         /// <summary>Sits under the mark wherever there is room for it.</summary>
         public const string Tagline = "ARENA MULTIJUGADOR";
 
-        /// <summary>The mark's second hue. Deliberately used nowhere else.</summary>
-        public static readonly Color Magenta = new Color(1f, 0.24f, 0.68f, 1f);
+        /// <summary>
+        /// The mark's second hue: the violet tube, pushed brighter than the one on the cards so
+        /// the D still carries at logo size.
+        /// </summary>
+        public static readonly Color MarkViolet = new Color(0.72f, 0.46f, 1f, 1f);
 
         /// <summary>
         /// Builds the wordmark as a child of <paramref name="parent"/>, stretched over it. The
@@ -64,7 +67,7 @@ namespace Unity.BossRoom.Gameplay.UI
 
             var glowImage = glow.gameObject.AddComponent<Image>();
             glowImage.sprite = ToonMenuSkin.GlowSprite;
-            glowImage.color = new Color(ToonMenuSkin.Accent.r, ToonMenuSkin.Accent.g, ToonMenuSkin.Accent.b, 0.22f);
+            glowImage.color = new Color(HudSkin.Amethyst.r, HudSkin.Amethyst.g, HudSkin.Amethyst.b, 0.24f);
             glowImage.raycastTarget = false;
             glow.gameObject.AddComponent<ToonGlowPulse>().SetRange(0.12f, 0.3f);
 
@@ -113,7 +116,7 @@ namespace Unity.BossRoom.Gameplay.UI
         /// <summary>The name with its accent tail already coloured, for use in any TMP field.</summary>
         public static string Wordmark()
         {
-            return NameStem + "<color=#" + ColorUtility.ToHtmlStringRGB(Magenta) + ">" + NameAccent + "</color>";
+            return NameStem + "<color=#" + ColorUtility.ToHtmlStringRGB(MarkViolet) + ">" + NameAccent + "</color>";
         }
     }
 }

@@ -205,11 +205,12 @@ namespace Unity.BossRoom.Gameplay.UI
             plate.sprite = ToonMenuSkin.InputFillSprite;
             plate.type = UnityEngine.UI.Image.Type.Sliced;
             plate.pixelsPerUnitMultiplier = 2f;
-            plate.color = new Color(0.16f, 0.11f, 0.03f, 0.96f);
+            plate.color = new Color(0.10f, 0.075f, 0.16f, 0.96f);
             plate.raycastTarget = false;
 
-            UIKit.Outline(strip.gameObject, new Color(UIKit.Gold.r, UIKit.Gold.g, UIKit.Gold.b, 0.7f));
-            UIKit.Icon(strip, UIIcons.Icon.Warning, UIKit.Gold, 30f);
+            // Amethyst, not gold: a toast is a warning, and gold is reserved for first place.
+            UIKit.Outline(strip.gameObject, new Color(HudSkin.Amethyst.r, HudSkin.Amethyst.g, HudSkin.Amethyst.b, 0.7f));
+            UIKit.Icon(strip, UIIcons.Icon.Warning, HudSkin.Amethyst, 30f);
 
             m_ToastLabel = UIKit.Text(strip, string.Empty, UIKit.TextStyle.Body, TextAlignmentOptions.Left,
                 HudSkin.TextPrimary);
